@@ -1616,12 +1616,46 @@ body.light-mode .division-filter-btn.active{
   border-color:#b30000!important;
 }
 
+/* ===== JOB DETAILS ===== */
+.details-box{margin-top:8px;padding:8px 10px;background:var(--mid);border:1px solid var(--line);border-radius:5px;}
+.dt-line{display:block;font-size:13px;color:#7ec8f7;text-decoration:none;margin-bottom:4px;line-height:1.35;}
+.dt-line:hover{text-decoration:underline;}
+.dt-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;}
+.dt-chip{display:flex;flex-direction:column;padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);min-width:70px;}
+.dt-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;}
+.dt-val{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;}
+.dt-chip.green{background:rgba(42,138,94,.15);border-color:rgba(42,138,94,.4);}
+.dt-chip.green .dt-val{color:#6ee0a0;}
+.dt-chip.amber{background:rgba(212,160,23,.15);border-color:rgba(212,160,23,.4);}
+.dt-chip.amber .dt-val{color:#f5c400;}
+.dt-chip.red{background:rgba(204,0,0,.15);border-color:rgba(204,0,0,.4);}
+.dt-chip.red .dt-val{color:#ff8b8b;}
+.field input[type=checkbox]{width:auto;padding:0;}
+.details-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.details-form .span2{grid-column:1 / -1;}
+.mini-lbl{display:block;font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+body.light-mode .details-box{background:#f6f6f6!important;border-color:#d0d0d0!important;}
+body.light-mode .dt-line{color:#1d4f91!important;}
+body.light-mode .dt-chip{background:#fff!important;border-color:#d0d0d0!important;}
+body.light-mode .dt-lbl{color:#555!important;}
+body.light-mode .dt-val{color:#111!important;}
+body.light-mode .dt-chip.green .dt-val{color:#004d31!important;}
+body.light-mode .dt-chip.amber .dt-val{color:#6a4b00!important;}
+body.light-mode .dt-chip.red .dt-val{color:#7a0000!important;}
+@media print{ .details-box{background:#fafafa!important;border:1px solid #ddd!important;} .dt-line,.dt-val{color:#000!important;} }
+
+/* ===== RESOLVED EMERGENCIES ===== */
+.emg-card.resolved{border-left-color:var(--green);opacity:.75;}
+.emg-card.resolved .emg-card-type{color:var(--muted);}
+.emg-entry.resolved{background:rgba(42,138,94,.08);border-color:rgba(42,138,94,.25);}
+.emg-entry.resolved .emg-type{color:#6ee0a0;}
+.emg-resolved-badge{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:rgba(42,138,94,.2);color:#6ee0a0;}
 </style>
 </head>
 <body>
 
 <header>
-  <span class="hdr-title">Salco Job Board v6.6</span>
+  <span class="hdr-title">Salco Job Board v6.7</span>
   <div class="hdr-right">
     <span class="sync-dot" id="sync-dot" title="Sync status"></span>
 
@@ -1814,6 +1848,34 @@ body.light-mode .division-filter-btn.active{
       </div>
     </div>
     
+
+    <div class="field">
+      <label>Job Details</label>
+      <div class="details-form">
+        <input id="f-onside" placeholder="Onside Job # (e.g. 26-20-497404)">
+        <input id="f-phone" placeholder="Homeowner phone">
+        <input id="f-address" class="span2" placeholder="Site address">
+        <div><span class="mini-lbl">Site visit date</span><input type="date" id="f-visit-date"></div>
+        <div><span class="mini-lbl">Site visit time</span><input id="f-visit-time" placeholder="e.g. 2pm"></div>
+        <div><span class="mini-lbl">Start time</span><input id="f-start-time" placeholder="e.g. 8am"></div>
+        <div><span class="mini-lbl">End date</span><input type="date" id="f-end-date"></div>
+        <div><span class="mini-lbl">NOP</span>
+          <select id="f-nop">
+            <option value="">—</option>
+            <option value="Need to Apply">Need to Apply</option>
+            <option value="Requested">Requested</option>
+            <option value="Filed">Filed</option>
+          </select>
+        </div>
+        <div><span class="mini-lbl">NOP date</span><input type="date" id="f-nop-date"></div>
+        <div><span class="mini-lbl">Hazmat report</span>
+          <select id="f-hazmat"><option value="">—</option><option>Yes</option><option>No</option></select>
+        </div>
+        <div><span class="mini-lbl">Xactimate file</span>
+          <select id="f-xact"><option value="">—</option><option>Yes</option><option>No</option></select>
+        </div>
+      </div>
+    </div>
 
     <div class="field">
       <label>Work Days</label>
@@ -2046,10 +2108,11 @@ function updateEmergencyBanner(){
 
   if(!banner) return;
 
-  if(allEmergencies.length>0){
-    const latest=allEmergencies[0];
+  const open=openEmergencies();
+  if(open.length>0){
+    const latest=open[0];
     banner.style.display='block';
-    banner.innerHTML=`🚨 ACTIVE INCIDENT — ${latest.job_name || 'UNKNOWN SITE'}`;
+    banner.innerHTML=`🚨 ACTIVE INCIDENT — ${esc(latest.job_name || 'UNKNOWN SITE')}${open.length>1?` (+${open.length-1} more)`:''}`;
   }else{
     banner.style.display='none';
   }
@@ -2069,7 +2132,101 @@ function setSyncStatus(s){
 
 // Single consolidated re-render call — replaces the repeated 8-line block throughout the file
 /* ===== ABATEMENT AUTO-TASKS ===== */
-const ABATEMENT_TASKS=['NOP Filed','DOPs Scheduled','Site Mobilized'];
+const ABATEMENT_TASKS=['DOPs Scheduled','Site Mobilized'];
+
+/* ===== JOB DETAILS (stored in jobs.details jsonb) ===== */
+const DETAIL_DEFAULTS={
+  onsideNo:'', address:'', phone:'',
+  siteVisitDate:'', siteVisitTime:'',
+  startTime:'', endDate:'',
+  nop:'', nopDate:'',
+  hazmat:'', xactimate:''
+};
+const NOP_OPTIONS=['','Need to Apply','Requested','Filed'];
+
+function esc(s){
+  return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmtShortDate(d){
+  const p=parseLocalDate(d);
+  if(!p) return d||'';
+  return p.toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+}
+
+function detailsHTML(j){
+  const d=j.details||{};
+  const has=Object.keys(DETAIL_DEFAULTS).some(k=>d[k]) || j.pm;
+  if(!has) return '';
+
+  const nopCls=d.nop==='Filed'?'green':d.nop==='Requested'?'amber':d.nop==='Need to Apply'?'red':'';
+  const ynCls=v=>v==='Yes'?'green':v==='No'?'red':'';
+  const chip=(label,val,cls='')=>val?`<div class="dt-chip ${cls}"><span class="dt-lbl">${label}</span><span class="dt-val">${esc(val)}</span></div>`:'';
+
+  const visit=[d.siteVisitDate?fmtShortDate(d.siteVisitDate):'',d.siteVisitTime].filter(Boolean).join(' · ');
+  const nopTxt=[d.nop,d.nopDate?fmtShortDate(d.nopDate):''].filter(Boolean).join(' · ');
+  const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.address||'');
+  const tel=(d.phone||'').replace(/[^\d+]/g,'');
+
+  return `<div class="details-box">
+    ${d.address?`<a class="dt-line" href="${mapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 ${esc(d.address)}</a>`:''}
+    ${d.phone?`<a class="dt-line" href="tel:${esc(tel)}" onclick="event.stopPropagation()">📞 ${esc(d.phone)}</a>`:''}
+    <div class="dt-grid">
+      ${chip('Onside #',d.onsideNo)}
+      ${chip('PM',j.pm)}
+      ${chip('Site Visit',visit)}
+      ${chip('Start Time',d.startTime)}
+      ${chip('End',d.endDate?fmtShortDate(d.endDate):'')}
+      ${chip('NOP',nopTxt,nopCls)}
+      ${chip('Hazmat',d.hazmat,ynCls(d.hazmat))}
+      ${chip('Xactimate',d.xactimate,ynCls(d.xactimate))}
+    </div>
+  </div>`;
+}
+
+function readDetailsForm(){
+  const v=id=>document.getElementById(id)?.value.trim()||'';
+  return {
+    onsideNo:v('f-onside'), address:v('f-address'), phone:v('f-phone'),
+    siteVisitDate:v('f-visit-date'), siteVisitTime:v('f-visit-time'),
+    startTime:v('f-start-time'), endDate:v('f-end-date'),
+    nop:v('f-nop'), nopDate:v('f-nop-date'),
+    hazmat:v('f-hazmat'), xactimate:v('f-xact')
+  };
+}
+
+function fillDetailsForm(d){
+  d={...DETAIL_DEFAULTS,...(d||{})};
+  const set=(id,val)=>{const el=document.getElementById(id); if(el) el.value=val||'';};
+  set('f-onside',d.onsideNo); set('f-address',d.address); set('f-phone',d.phone);
+  set('f-visit-date',d.siteVisitDate); set('f-visit-time',d.siteVisitTime);
+  set('f-start-time',d.startTime); set('f-end-date',d.endDate);
+  set('f-nop',d.nop); set('f-nop-date',d.nopDate);
+  set('f-hazmat',d.hazmat); set('f-xact',d.xactimate);
+}
+
+/* ===== EMERGENCIES: open vs resolved ===== */
+function openEmergencies(){ return (allEmergencies||[]).filter(e=>!e.resolved); }
+
+async function setEmergencyResolved(id,resolved){
+  if(!requireEditor()) return;
+  const e=allEmergencies.find(x=>x.id===id); if(!e) return;
+  if(resolved && !confirm('Mark this incident as completed? It stays on record under Resolved.')) return;
+  e.resolved=resolved;
+  e.resolved_at=resolved?new Date().toISOString():null;
+  isSaving=true;
+  setSyncStatus('syncing');
+  try{
+    await api('emergencies?id=eq.'+encodeURIComponent(id),'PATCH',{resolved:e.resolved,resolved_at:e.resolved_at});
+    setSyncStatus('ok');
+  }catch(err){
+    setSyncStatus('error');
+    console.error('resolve emergency error',err);
+    alert('Could not save. Check your connection and try again.');
+    e.resolved=!resolved;
+  }finally{ isSaving=false; }
+  refreshAll();
+}
 
 function isAbatementJob(job){
   const hay=[job.name,job.scope,...(job.tags||[]).map(t=>t.text)].join(' ').toLowerCase();
@@ -2107,15 +2264,85 @@ function refreshAll(){
   render();
 }
 
-async function api(path,method='GET',body=null){
+/* ===== LOGIN AUTO-RENEW ===== */
+let refreshPromise=null;
+
+function sessionExpiresSoon(bufferSec=300){
+  if(!currentSession) return false;
+  const exp=currentSession.expires_at
+    || (currentSession.expires_in && currentSession._saved_at ? currentSession._saved_at+currentSession.expires_in : 0);
+  if(!exp) return true;
+  return (Date.now()/1000) > (exp-bufferSec);
+}
+
+function storeSession(data){
+  data._saved_at=Math.floor(Date.now()/1000);
+  if(!data.expires_at && data.expires_in) data.expires_at=data._saved_at+data.expires_in;
+  currentSession=data;
+  currentUser=data.user||currentUser;
+  try{ localStorage.setItem('salco_auth_session',JSON.stringify(data)); }catch(e){}
+}
+
+// Swap the refresh token for a fresh login. Returns true on success.
+async function refreshSession(){
+  if(!currentSession?.refresh_token) return false;
+  if(refreshPromise) return refreshPromise;
+  refreshPromise=(async()=>{
+    try{
+      const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+        body:JSON.stringify({refresh_token:currentSession.refresh_token})
+      });
+      if(!r.ok) return false;
+      storeSession(await r.json());
+      return true;
+    }catch(e){
+      console.warn('Session refresh failed',e);
+      return false;
+    }finally{
+      setTimeout(()=>{refreshPromise=null;},0);
+    }
+  })();
+  return refreshPromise;
+}
+
+let expiredNotified=false;
+function sessionExpired(){
+  if(expiredNotified) return;
+  expiredNotified=true;
+  logout();
+  const err=document.getElementById('loginError');
+  if(err) err.textContent='Your login expired. Please log in again.';
+}
+
+// Check every minute; renew 5 minutes before expiry.
+setInterval(async()=>{
+  if(currentSession && sessionExpiresSoon()){
+    const ok=await refreshSession();
+    if(!ok && sessionExpiresSoon(0)) sessionExpired();
+  }
+},60000);
+
+async function api(path,method='GET',body=null,_retried=false){
   if(isWriteMethod(method) && !canEdit()){
     throw new Error('Read-only access blocked write request.');
+  }
+
+  if(currentSession && sessionExpiresSoon(60) && !_retried){
+    await refreshSession();
   }
 
   const opts={method,headers:authHeaders()};
   if(body) opts.body=JSON.stringify(body);
 
   const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,opts);
+
+  if(r.status===401 && currentSession && !_retried){
+    if(await refreshSession()) return api(path,method,body,true);
+    sessionExpired();
+    throw new Error('Login expired.');
+  }
 
   if(r.status===401 || r.status===403){
     throw new Error('Unauthorized or blocked by Supabase policy.');
@@ -2145,6 +2372,7 @@ function normalizeJob(j,i){
     pm:j.pm||'',
     crewSize:j.crewSize||'',
     pinned:j.pinned||false,
+    details:{...DETAIL_DEFAULTS,...(j.details||{})},
     workDays:{
       mon: j.workDays?.mon ?? true,
       tue: j.workDays?.tue ?? true,
@@ -2196,10 +2424,8 @@ async function login(){
       throw new Error(data.error_description || data.msg || 'Login failed.');
     }
 
-    currentSession=data;
-    currentUser=data.user;
-
-    localStorage.setItem('salco_auth_session',JSON.stringify(data));
+    storeSession(data);
+    expiredNotified=false;
 
     await loadUserRole();
     applyAuthState();
@@ -2283,6 +2509,9 @@ async function logout(){
   allEmergencies=[];
 
   localStorage.removeItem('salco_auth_session');
+  // Job data now holds homeowner contact info: don't leave a copy on shared computers.
+  localStorage.removeItem('salco_jobs_backup');
+  localStorage.removeItem('salco_emg_backup');
 
   applyAuthState();
   render();
@@ -2302,6 +2531,12 @@ async function initAuth(){
       currentSession=JSON.parse(saved);
       currentUser=currentSession.user;
 
+      // Saved login may be hours old: renew it before loading anything.
+      if(sessionExpiresSoon()){
+        const ok=await refreshSession();
+        if(!ok) throw new Error('Saved login expired');
+      }
+
       await loadUserRole();
       applyAuthState();
       await loadAll();
@@ -2309,6 +2544,9 @@ async function initAuth(){
     }catch(e){
       console.warn('Saved session could not be restored.',e);
       localStorage.removeItem('salco_auth_session');
+      currentSession=null;
+      currentUser=null;
+      currentUserRole=null;
     }
   }
 
@@ -2366,6 +2604,7 @@ function toDbRow(job){
     pm: job.pm||'',
     crewSize: job.crewSize||'',
     pinned: job.pinned||false,
+    details: job.details||{},
     workDays: {
       mon: !!(job.workDays && job.workDays.mon),
       tue: !!(job.workDays && job.workDays.tue),
@@ -2414,7 +2653,7 @@ const STATUS_ORDER=['urgent','soon','ongoing','hold'];
 const STATUS_LABELS={urgent:'🔴 Immediate',soon:'🟡 Coming Soon',ongoing:'🟢 Ongoing',hold:'⏸ On Hold'};
 
 function jobEmergencies(jid){ return allEmergencies.filter(e=>e.job_id===jid); }
-function hasEmergency(jid){ return jobEmergencies(jid).length>0; }
+function hasEmergency(jid){ return jobEmergencies(jid).some(e=>!e.resolved); }
 
 
 function getStartWarning(j){
@@ -2621,7 +2860,7 @@ function renderOverduePanel(){
 
 function updateDashboard(){
   const jobs=allJobs||[];
-  const emergencies=allEmergencies||[];
+  const emergencies=openEmergencies();
 
   let active=0;
   let workers=0;
@@ -2953,22 +3192,39 @@ function renderEmergencies(){
     board.innerHTML='<p class="empty-msg" style="padding:1rem;">No emergencies logged. 🟢 All clear.</p>';
     return;
   }
-  let html=`<div class="group-label" style="padding:4px 0 8px;">🚨 All Incidents — Newest First (${allEmergencies.length})</div>`;
-  allEmergencies.forEach(e=>{
-    const job=allJobs.find(j=>j.id===e.job_id);
+  const open=allEmergencies.filter(e=>!e.resolved);
+  const closed=allEmergencies.filter(e=>e.resolved);
+
+  const emgCard=e=>{
     const divLabel=e.division==='sgd'?'SGD':'SGC';
-    html+=`<div class="emg-card">
+    return `<div class="emg-card ${e.resolved?'resolved':''}">
       <div class="emg-card-header">
-        <span class="emg-job-name">${e.job_name||'Unknown Job'}</span>
-        <span class="emg-div-badge">${divLabel}</span>
+        <span class="emg-job-name">${esc(e.job_name||'Unknown Job')}</span>
+        <span style="display:flex;gap:6px;align-items:center;">
+          ${e.resolved?'<span class="emg-resolved-badge">✓ Resolved</span>':''}
+          <span class="emg-div-badge">${divLabel}</span>
+        </span>
       </div>
-      <div class="emg-card-type">${e.type}</div>
-      <div class="emg-card-desc">${e.description||'—'}</div>
+      <div class="emg-card-type">${esc(e.type)}</div>
+      <div class="emg-card-desc">${esc(e.description||'—')}</div>
       <div class="emg-card-meta">
-        ${e.logged_by?'Logged by '+e.logged_by+' · ':''}${formatDateTime(e.created_at)}
+        ${e.logged_by?'Logged by '+esc(e.logged_by)+' · ':''}${formatDateTime(e.created_at)}
+        ${e.resolved&&e.resolved_at?' · Resolved '+formatDateTime(e.resolved_at):''}
+      </div>
+      <div class="card-btns">
+        ${e.resolved
+          ?`<button class="btn reopen" onclick="setEmergencyResolved('${e.id}',false)">↺ Reopen</button>`
+          :`<button class="btn complete" onclick="setEmergencyResolved('${e.id}',true)">✓ Completed</button>`}
       </div>
     </div>`;
-  });
+  };
+
+  let html=`<div class="group-label" style="padding:4px 0 8px;">🚨 Open Incidents (${open.length})</div>`;
+  html+=open.length?open.map(emgCard).join(''):'<p class="empty-msg">No open incidents. 🟢 All clear.</p>';
+  if(closed.length){
+    html+=`<div class="divider"></div><div class="group-label" style="padding:4px 0 8px;">✅ Resolved (${closed.length})</div>`;
+    html+=closed.map(emgCard).join('');
+  }
   board.innerHTML=html;
   applyMobileFixes();
 }
@@ -2981,7 +3237,8 @@ function cardHTML(j){
       ${t.text}
     </span>`).join('');
   const emgs=jobEmergencies(j.id);
-  const hasEmg=emgs.length>0;
+  const openEmgCount=emgs.filter(e=>!e.resolved).length;
+  const hasEmg=openEmgCount>0;
 
   const tasksHTML=`
     <div class="tasks-toggle ${openTasks[j.id]?'open':''}" onclick="toggleTasks('${j.id}',this)">
@@ -3036,17 +3293,22 @@ function cardHTML(j){
   const emgHTML=`
     <div class="emg-toggle ${openEmg[j.id]?'open':''}" onclick="toggleEmg('${j.id}',this)">
       <span class="emg-arrow">▶</span>
-      <span class="emg-lbl">🚨 Incidents (${emgs.length})</span>
+      <span class="emg-lbl">🚨 Incidents (${openEmgCount} open${emgs.length>openEmgCount?` · ${emgs.length-openEmgCount} resolved`:''})</span>
     </div>
     <div class="emg-list ${openEmg[j.id]?'open':''}" id="emglist-${j.id}">
       ${emgs.map(e=>`
-        <div class="emg-entry">
+        <div class="emg-entry ${e.resolved?'resolved':''}">
           <div class="emg-entry-header">
-            <span class="emg-type">${e.type}</span>
+            <span class="emg-type">${esc(e.type)}${e.resolved?' · ✓ Resolved':''}</span>
             <span class="emg-time">${formatDateTime(e.created_at)}</span>
           </div>
-          <div class="emg-desc">${e.description||'—'}</div>
-          ${e.logged_by?`<div class="emg-by">Logged by ${e.logged_by}</div>`:''}
+          <div class="emg-desc">${esc(e.description||'—')}</div>
+          ${e.logged_by?`<div class="emg-by">Logged by ${esc(e.logged_by)}</div>`:''}
+          <div class="card-btns" style="margin-top:6px;">
+            ${e.resolved
+              ?`<button class="btn reopen" onclick="setEmergencyResolved('${e.id}',false)">↺ Reopen</button>`
+              :`<button class="btn complete" onclick="setEmergencyResolved('${e.id}',true)">✓ Completed</button>`}
+          </div>
         </div>`).join('')}
     </div>`;
 
@@ -3071,6 +3333,8 @@ function cardHTML(j){
     ondrop="dropCard('${j.id}')">
     <div class="card-name ${j.completed?'done':''}">${j.name}</div>
     ${j.scope?`<div class="card-scope">${j.scope}</div>`:''}
+
+    ${detailsHTML(j)}
 
     <div class="op-row">
       <div class="op-cell">
@@ -3316,6 +3580,7 @@ function openAddJob(){
   document.getElementById('f-pm').value='';
   document.getElementById('f-crew-size').value='';
   document.getElementById('f-pinned').checked=false;
+  fillDetailsForm(null);
   setSelectedWorkdays({...DEFAULT_WORKDAYS});
   renderTagList();
   document.getElementById('modal').classList.add('open');
@@ -3340,6 +3605,7 @@ function editJob(jid){
   document.getElementById('f-pm').value=job.pm||'';
   document.getElementById('f-crew-size').value=job.crewSize||'';
   document.getElementById('f-pinned').checked=job.pinned||false;
+  fillDetailsForm(job.details);
 
   setSelectedWorkdays(job.workDays || DEFAULT_WORKDAYS);
   renderTagList();
@@ -3401,6 +3667,7 @@ async function saveJob(){
   const crewSize=document.getElementById('f-crew-size').value.trim();
   const pinned=document.getElementById('f-pinned').checked;
   const workDays=getSelectedWorkdays();
+  const details=readDetailsForm();
   if(editingId){
     const job=allJobs.find(j=>j.id===editingId);
     if(job){
@@ -3418,6 +3685,7 @@ async function saveJob(){
       job.pm=pm;
       job.crewSize=crewSize;
       job.pinned=pinned;
+      job.details={...(job.details||{}),...details};
       job.workDays={
         mon:!!workDays.mon,
         tue:!!workDays.tue,
@@ -3452,6 +3720,7 @@ async function saveJob(){
       pm,
       crewSize,
       pinned,
+      details,
       workDays:{
         mon:!!workDays.mon,
         tue:!!workDays.tue,
@@ -3501,7 +3770,8 @@ async function saveEmergency(){
     type,
     description:desc,
     logged_by:by,
-    created_at:new Date().toISOString()
+    created_at:new Date().toISOString(),
+    resolved:false
   };
   allEmergencies.unshift(emg);
   await insertEmg(emg);
