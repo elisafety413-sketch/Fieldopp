@@ -2252,6 +2252,20 @@ function ensureAbatementTasks(job){
   return added;
 }
 
+/* ===== JOB SCHEDULE (ribbon + workers pill) =====
+   A job shows on every day from its Start Date that has its M-S work-day
+   button on, until it is marked Complete. The Days field is ignored.
+   If an End Date is set in Job Details, the job stops after that date. */
+function jobEndDate(j,start){
+  start=start||parseLocalDate(j.startDate);
+  if(!start) return null;
+
+  const endFromDetails=parseLocalDate(j.details?.endDate);
+  if(endFromDetails && endFromDetails>=start) return endFromDetails;
+
+  return new Date(8640000000000000); // open-ended until Complete
+}
+
 function refreshAll(){
   updateDashboard();
   saveLocalBackup();
@@ -2736,8 +2750,7 @@ function renderWorkersPanel(){
     if(j.completed || j.tbd || !j.startDate) return false;
     if(!(j.crewSize || j.manpower)) return false;
     const start=parseLocalDate(j.startDate);
-    const duration=parseInt(j.days)||1;
-    const end=new Date(start); end.setDate(start.getDate()+duration-1);
+    const end=jobEndDate(j,start) || start;
     const workingToday=j.workDays ? !!j.workDays[dayKey] : ['mon','tue','wed','thu','fri'].includes(dayKey);
     return today>=start && today<=end && workingToday;
   });
@@ -2876,9 +2889,7 @@ function updateDashboard(){
 
     if(!j.completed && !j.tbd && j.startDate){
       const start=parseLocalDate(j.startDate);
-      const duration=parseInt(j.days)||1;
-      const end=new Date(start);
-      end.setDate(start.getDate()+duration-1);
+      const end=jobEndDate(j,start) || start;
       const today=new Date(); today.setHours(0,0,0,0);
       const dayKey=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
       const workingToday=j.workDays ? !!j.workDays[dayKey] : ['mon','tue','wed','thu','fri'].includes(dayKey);
@@ -3964,16 +3975,8 @@ function renderOpsRibbon(){
 
       start.setHours(0,0,0,0);
 
-      let duration=parseInt(j.days,10);
-
-      // Blank days = 1-day job. Explicit 0/invalid = do not show in ribbon.
-      if(j.days==='' || j.days===null || typeof j.days==='undefined'){
-        duration=1;
-      }
-
-      if(isNaN(duration) || duration<=0){
-        return;
-      }
+      const end=jobEndDate(j,start);
+      if(!end) return;
 
       const normalizedWorkDays={
         mon: j.workDays ? !!j.workDays.mon : true,
@@ -3988,9 +3991,6 @@ function renderOpsRibbon(){
       if(!Object.values(normalizedWorkDays).some(Boolean)){
         return;
       }
-
-      const end=new Date(start);
-      end.setDate(start.getDate()+duration-1);
 
       const dayKeys=['sun','mon','tue','wed','thu','fri','sat'];
 
