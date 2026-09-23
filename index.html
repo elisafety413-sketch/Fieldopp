@@ -1,0 +1,3804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salco Job Board</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap');
+:root{--red:#CC0000;--red-dark:#990000;--black:#111;--grey:#1e1e1e;--mid:#2a2a2a;--line:#333;--text:#f0f0f0;--muted:#888;--yellow:#d4a017;--green:#2a8a5e;--blue:#2563ab;--emergency:#ff4444;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--black);color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;min-height:100vh;}
+
+header{background:var(--red);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--red-dark);position:sticky;top:0;z-index:50;}
+.hdr-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-btn{background:#fff;color:var(--red);border:none;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#6ee0a0;display:inline-block;}
+.sync-dot.syncing{background:var(--yellow);animation:pulse .8s infinite;}
+.sync-dot.error{background:#ff6666;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.div-tabs{display:flex;background:#0a0a0a;border-bottom:2px solid var(--red);}
+.div-tab{flex:1;padding:11px 8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);cursor:pointer;text-align:center;background:none;border:none;transition:all .15s;}
+.div-tab.active{color:#fff;background:var(--red);}
+.div-tab.emergency-div{color:var(--emergency);}
+.div-tab.emergency-div.active{background:var(--emergency);color:#fff;}
+
+.status-tabs{display:flex;background:var(--grey);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;}
+.status-tabs::-webkit-scrollbar{display:none;}
+.status-tab{padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s;}
+.status-tab.active{color:var(--red);border-bottom-color:var(--red);}
+
+.search-wrap{padding:10px 12px;background:var(--grey);border-bottom:1px solid var(--line);}
+.search-wrap input{width:100%;padding:8px 12px;background:var(--mid);color:var(--text);border:1px solid var(--line);border-radius:5px;font-family:'Barlow',sans-serif;font-size:14px;outline:none;}
+.search-wrap input:focus{border-color:var(--red);}
+.search-wrap input::placeholder{color:var(--muted);}
+
+.board{padding:12px;}
+.group-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:4px 0 8px;margin-top:4px;}
+
+.card{background:var(--grey);border-left:4px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:10px;cursor:grab;}
+.card:active{cursor:grabbing;}
+.card.urgent{border-left-color:var(--red);}
+.card.soon{border-left-color:var(--yellow);}
+.card.ongoing{border-left-color:var(--green);}
+.card.hold{border-left-color:var(--muted);}
+.card.pipeline{border-left-color:var(--blue);}
+.card.completed-card{border-left-color:var(--green);opacity:.7;}
+.card.has-emergency{border-left-color:var(--emergency)!important;box-shadow:0 0 0 1px var(--emergency);}
+.card.drag-over{outline:2px dashed var(--red);outline-offset:2px;}
+.card-name{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
+.card-name.done{text-decoration:line-through;color:var(--muted);}
+.card-scope{font-size:13px;color:var(--muted);margin-top:2px;}
+.card-notes{font-size:11px;color:var(--muted);margin-top:4px;font-style:italic;}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.tag{padding:2px 7px;border-radius:3px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
+.tag.red{background:rgba(204,0,0,.2);color:#ff6666;}
+.tag.amber{background:rgba(212,160,23,.15);color:#f5c400;}
+.tag.green{background:rgba(42,138,94,.15);color:#6ee0a0;}
+.tag.blue{background:rgba(37,99,171,.15);color:#7ec8f7;}
+
+.card-btns{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:4px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer;}
+.btn:hover{background:var(--mid);}
+.btn.complete{color:#6ee0a0;border-color:var(--green);}
+.btn.reopen{color:#7ec8f7;border-color:var(--blue);}
+.btn.danger:hover{color:#ff6666;border-color:var(--red);}
+.btn.emergency{color:var(--emergency);border-color:var(--emergency);animation:none;}
+.btn.emergency:hover{background:rgba(255,68,68,.1);}
+
+.tasks-toggle{display:flex;align-items:center;gap:5px;margin-top:9px;cursor:pointer;width:fit-content;}
+.tasks-arrow{font-size:10px;color:var(--red);transition:transform .2s;display:inline-block;}
+.tasks-toggle.open .tasks-arrow{transform:rotate(90deg);}
+.tasks-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--red);}
+.prog-wrap{margin-top:5px;background:var(--mid);border-radius:4px;height:3px;overflow:hidden;}
+.prog-bar{height:3px;background:var(--red);border-radius:4px;transition:width .3s;}
+.tasklist{display:none;margin-top:8px;border-top:1px solid var(--line);padding-top:8px;}
+.tasklist.open{display:block;}
+.task{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.task:last-of-type{border-bottom:none;}
+.task-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.task-left{display:flex;align-items:flex-start;gap:8px;flex:1;}
+.task-left input[type=checkbox]{margin-top:3px;accent-color:var(--green);flex-shrink:0;}
+.task-text{font-size:13px;color:var(--text);line-height:1.4;}
+.task.done .task-text{text-decoration:line-through;color:var(--muted);}
+.task-due{font-size:11px;color:#f5c400;white-space:nowrap;margin-top:2px;}
+.add-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.add-row input[type=text]{flex:1;min-width:100px;font-size:13px;padding:6px 9px;border-radius:4px;border:1px solid var(--line);background:var(--mid);color:var(--text);font-family:'Barlow',sans-serif;outline:none;}
+.add-row input[type=text]:focus{border-color:var(--red);}
+.add-row input[type=date]{font-size:12px;padding:6px 8px;border-radius:4px;border:1px solid var(--line);background:var(--mid);color:var(--text);font-family:'Barlow',sans-serif;outline:none;max-width:130px;}
+.add-task-btn{background:var(--red);color:#fff;border:none;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;cursor:pointer;white-space:nowrap;}
+
+/* EMERGENCY SECTION ON CARD */
+.emg-toggle{display:flex;align-items:center;gap:5px;margin-top:9px;cursor:pointer;width:fit-content;}
+.emg-arrow{font-size:10px;color:var(--emergency);transition:transform .2s;display:inline-block;}
+.emg-toggle.open .emg-arrow{transform:rotate(90deg);}
+.emg-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--emergency);}
+.emg-list{display:none;margin-top:8px;border-top:1px solid rgba(255,68,68,.3);padding-top:8px;}
+.emg-list.open{display:block;}
+.emg-entry{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);border-radius:5px;padding:8px 10px;margin-bottom:6px;}
+.emg-entry-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.emg-type{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--emergency);}
+.emg-time{font-size:11px;color:var(--muted);}
+.emg-desc{font-size:13px;color:var(--text);margin-top:4px;line-height:1.4;}
+.emg-by{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* EMERGENCY GLOBAL TAB */
+.emg-card{background:var(--grey);border-left:4px solid var(--emergency);border-radius:6px;padding:12px 14px;margin-bottom:10px;}
+.emg-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;}
+.emg-job-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text);}
+.emg-div-badge{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:rgba(204,0,0,.2);color:#ff6666;}
+.emg-card-type{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--emergency);margin-top:6px;}
+.emg-card-desc{font-size:13px;color:var(--text);margin-top:4px;line-height:1.4;}
+.emg-card-meta{font-size:11px;color:var(--muted);margin-top:5px;}
+
+.divider{height:1px;background:var(--line);margin:12px 0;}
+.empty-msg{font-size:14px;color:var(--muted);padding:1rem 0;}
+
+.fab{position:fixed;right:20px;bottom:24px;width:52px;height:52px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:26px;cursor:pointer;z-index:40;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.fab.hide{display:none;}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;padding:16px;overflow:auto;z-index:60;}
+.modal.open{display:flex;align-items:flex-start;justify-content:center;padding-top:40px;}
+.modal-box{background:var(--grey);border-radius:8px;border:1px solid var(--line);padding:20px;width:100%;max-width:380px;}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:14px;}
+.modal-title.emergency{color:var(--emergency);}
+.field{margin-bottom:12px;}
+.field label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+.field input,.field textarea,.field select{width:100%;font-size:14px;padding:8px 10px;border-radius:4px;border:1px solid var(--line);background:var(--mid);color:var(--text);font-family:'Barlow',sans-serif;outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--red);}
+.field select option{background:var(--grey);}
+.field textarea{resize:vertical;min-height:80px;}
+.tag-chip{display:inline-flex;gap:4px;align-items:center;background:var(--mid);padding:3px 8px;border-radius:4px;margin:3px;}
+.tag-chip .x{cursor:pointer;color:var(--muted);font-size:12px;}
+.tag-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.tag-row input{flex:1;min-width:80px;}
+.tag-row select{max-width:90px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.btn-cancel{font-size:13px;padding:8px 16px;border-radius:4px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:600;}
+.btn-save{font-size:13px;padding:8px 16px;border-radius:4px;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
+.btn-save.emergency{background:var(--emergency);}
+
+
+
+.command-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:10px 14px;
+  background:#111;
+  border-bottom:1px solid var(--line);
+  flex-wrap:wrap;
+}
+
+.command-left{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.command-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:24px;
+  font-weight:700;
+  letter-spacing:1px;
+  color:#fff;
+}
+
+.command-sub{
+  font-size:11px;
+  color:#b5b5b5;
+  letter-spacing:.8px;
+}
+
+.command-pills{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.command-pill{
+  border-radius:18px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  border:1px solid #2e2e2e;
+  background:#1a1a1a;
+  color:#f0f0f0;
+}
+
+.pill-active{border-color:#2e8b57;color:#7ee2aa;}
+.pill-workers{border-color:#2563ab;color:#7ec8f7;}
+.pill-mobilizing{border-color:#d4a017;color:#ffd45c;}
+.pill-emergency{border-color:#a62d2d;color:#ff8888;}
+.pill-overdue{border-color:#ff5c5c;color:#ff9a9a;}
+
+.weather-strip{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:10px 14px;
+  background:linear-gradient(to bottom,#101010,#0b0b0b);
+  border-bottom:1px solid var(--line);
+}
+
+.weather-strip::-webkit-scrollbar{
+  display:none;
+}
+
+.weather-card{
+  min-width:110px;
+  background:#181818;
+  border:1px solid #2f2f2f;
+  border-radius:12px;
+  padding:10px;
+  color:#fff;
+  flex-shrink:0;
+  box-shadow:0 2px 10px rgba(0,0,0,.25);
+}
+
+.weather-card.today{
+  min-width:160px;
+  background:linear-gradient(135deg,#202020,#111);
+  border:1px solid #444;
+}
+
+.wx-day{
+  font-size:11px;
+  font-weight:700;
+  color:#bdbdbd;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+
+.wx-main{
+  font-size:24px;
+  font-weight:700;
+}
+
+.wx-sub{
+  margin-top:4px;
+  font-size:11px;
+  color:#8fd3ff;
+}
+
+.wx-icon{
+  font-size:20px;
+  margin-bottom:6px;
+}
+
+.wx-temp{
+  font-size:14px;
+  font-weight:700;
+}
+
+.wx-rain{
+  margin-top:5px;
+  font-size:11px;
+  color:#7ec8f7;
+}
+
+.status-ongoing{border-left:4px solid #2ecc71!important;}
+.status-soon{border-left:4px solid #f5c400!important;}
+.status-urgent{border-left:4px solid #ff5c5c!important;}
+.status-hold{border-left:4px solid #777!important;}
+.status-pipeline{border-left:4px solid #5ca9ff!important;}
+
+.card.status-urgent{
+  border-left:5px solid #ff5c5c!important;
+  box-shadow:0 0 0 1px rgba(255,92,92,.18);
+}
+
+.card.status-soon{
+  border-left:5px solid #f5c400!important;
+  box-shadow:0 0 0 1px rgba(245,196,0,.14);
+}
+
+.card.status-ongoing{
+  border-left:5px solid #2ecc71!important;
+  box-shadow:0 0 0 1px rgba(46,204,113,.14);
+}
+
+.card.status-hold{
+  border-left:5px solid #777!important;
+}
+
+.card.status-pipeline{
+  border-left:5px solid #5ca9ff!important;
+  box-shadow:0 0 0 1px rgba(92,169,255,.14);
+}
+
+.card.status-urgent .card-name{
+  color:#ffb3b3!important;
+}
+
+.card.status-soon .card-name{
+  color:#ffe082!important;
+}
+
+.card.status-ongoing .card-name{
+  color:#9cf0bf!important;
+}
+
+.card.status-pipeline .card-name{
+  color:#9fd0ff!important;
+}
+
+
+.op-row{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(90px,1fr));
+  gap:4px;
+  margin-top:10px;
+  background:var(--mid);
+  padding:6px;
+  border-radius:5px;
+  border:1px solid var(--line);
+  overflow-x:auto;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+
+.op-row::-webkit-scrollbar{
+  display:none;
+}
+
+.op-cell{
+  display:flex;
+  flex-direction:column;
+  min-width:85px;
+  overflow:hidden;
+}
+
+.op-label{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1px;
+  color:#d0d0d0;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.op-value{
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:2px 5px;
+  border-radius:4px;
+  width:fit-content;
+}
+
+.op-value.start-date{
+  background:rgba(212,160,23,.15);
+  color:#f5c400;
+}
+
+.op-value.manpower{
+  background:rgba(37,99,171,.15);
+  color:#7ec8f7;
+}
+
+.op-value.hours{
+  background:rgba(42,138,94,.15);
+  color:#6ee0a0;
+}
+
+.op-value.days{
+  background:rgba(255,68,68,.12);
+  color:#ff8b8b;
+}
+
+.op-value.super{
+  background:rgba(255,255,255,.06);
+  color:#f0f0f0;
+}
+
+.op-value.crew{
+  background:rgba(37,99,171,.15);
+  color:#7ec8f7;
+}
+
+
+.emergency-banner{
+  background:linear-gradient(90deg,#7a0000,#cc0000);
+  color:#fff;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:1px;
+  padding:10px 16px;
+  animation:bannerPulse 1.4s infinite;
+  border-bottom:1px solid #ff7777;
+}
+
+@keyframes bannerPulse{
+  0%,100%{opacity:1;}
+  50%{opacity:.75;}
+}
+
+.group-header{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+.group-chevron{
+  color:#999;
+  font-size:12px;
+  transition:transform .2s;
+}
+
+.group-header.closed .group-chevron{
+  transform:rotate(-90deg);
+}
+
+.group-content{
+  display:block;
+}
+
+.group-content.closed{
+  display:none;
+}
+
+.weather-alert{
+  margin-left:auto;
+  font-size:11px;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:12px;
+}
+
+.weather-alert.safe{
+  background:rgba(42,138,94,.15);
+  color:#6ee0a0;
+}
+
+.weather-alert.warning{
+  background:rgba(212,160,23,.15);
+  color:#ffd45c;
+}
+
+.weather-alert.danger{
+  background:rgba(255,68,68,.15);
+  color:#ff8b8b;
+}
+
+
+
+.command-dropdown{
+  position:relative;
+}
+
+.command-panel{
+  display:none;
+  position:fixed;
+  top:110px;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(420px,92vw);
+  max-width:92vw;
+  max-height:340px;
+  overflow-y:auto;
+  background:#161616;
+  border:1px solid #333;
+  border-radius:10px;
+  padding:12px;
+  z-index:120;
+  box-shadow:0 4px 18px rgba(0,0,0,.4);
+  backdrop-filter:blur(10px);
+}
+
+.command-panel.open{
+  display:block;
+}
+
+.command-section{
+  margin-bottom:12px;
+}
+
+.command-section-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  color:#7ec8f7;
+  margin-bottom:5px;
+  letter-spacing:.5px;
+}
+
+.command-item{
+  font-size:12px;
+  color:#ddd;
+  padding-left:10px;
+  margin-bottom:4px;
+}
+
+.command-empty{
+  font-size:12px;
+  color:#888;
+}
+
+.overdue-dropdown{
+  position:relative;
+}
+
+.overdue-panel{
+  display:none;
+  position:absolute;
+  top:38px;
+  right:0;
+  width:320px;
+  max-height:340px;
+  overflow-y:auto;
+  background:#161616;
+  border:1px solid #333;
+  border-radius:10px;
+  padding:12px;
+  z-index:120;
+  box-shadow:0 4px 18px rgba(0,0,0,.4);
+  backdrop-filter:blur(10px);
+}
+
+.overdue-panel.open{
+  display:block;
+}
+
+.overdue-job{
+  margin-bottom:12px;
+}
+
+.overdue-job-name{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  color:#ff8b8b;
+  margin-bottom:5px;
+  letter-spacing:.5px;
+}
+
+.overdue-task{
+  font-size:12px;
+  color:#ddd;
+  padding-left:10px;
+  margin-bottom:4px;
+}
+
+.overdue-empty{
+  font-size:12px;
+  color:#888;
+}
+
+
+.tasks-page-group{
+  margin-bottom:18px;
+}
+
+.tasks-page-job{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:18px;
+  font-weight:700;
+  color:#fff;
+  margin-bottom:8px;
+  border-bottom:1px solid #333;
+  padding-bottom:4px;
+}
+
+.tasks-page-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  background:#181818;
+  border:1px solid #2c2c2c;
+  border-radius:6px;
+  padding:10px 12px;
+  margin-bottom:6px;
+}
+
+.tasks-page-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:1;
+}
+
+.tasks-page-text{
+  font-size:14px;
+  color:#f0f0f0;
+}
+
+.tasks-page-due{
+  font-size:11px;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:12px;
+  white-space:nowrap;
+}
+
+.task-overdue{
+  background:rgba(255,68,68,.15);
+  color:#ff8b8b;
+}
+
+.task-today{
+  background:rgba(212,160,23,.15);
+  color:#ffd45c;
+}
+
+.task-normal{
+  background:rgba(42,138,94,.15);
+  color:#6ee0a0;
+}
+
+
+.task-actions{
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+
+.task-action-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-size:12px;
+  color:#999;
+  transition:.15s;
+}
+
+.task-action-btn:hover{
+  color:#fff;
+}
+
+.task-edit-row{
+  display:flex;
+  gap:6px;
+  margin-top:6px;
+  flex-wrap:wrap;
+}
+
+.task-edit-row input{
+  background:#222;
+  border:1px solid #333;
+  color:#fff;
+  border-radius:4px;
+  padding:6px 8px;
+  font-size:12px;
+}
+
+.task-save-btn{
+  background:#cc0000;
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:700;
+}
+
+
+.theme-toggle-btn{
+  min-width:auto;
+}
+
+.theme-toggle-btn:hover{
+  background:#222;
+}
+
+
+body.light-mode{
+  --red:#b30000;
+  --red-dark:#7a0000;
+
+  --black:#ececec;
+  --grey:#ffffff;
+  --mid:#f4f4f4;
+  --line:#d0d0d0;
+
+  --text:#151515;
+  --muted:#555555;
+
+  --yellow:#a66a00;
+  --green:#0f6b44;
+  --blue:#1d4f91;
+  --emergency:#c62828;
+
+  background:#ececec;
+  color:#151515;
+}
+
+/* GLOBAL TEXT */
+body.light-mode .card-name,
+body.light-mode .card-scope,
+body.light-mode .task-text,
+body.light-mode .tasks-page-text,
+body.light-mode .command-title,
+body.light-mode .wx-main,
+body.light-mode .wx-temp,
+body.light-mode .op-value,
+body.light-mode .emg-desc,
+body.light-mode .emg-job-name{
+  color:#151515!important;
+}
+
+/* MUTED TEXT */
+body.light-mode .card-notes,
+body.light-mode .task-due,
+body.light-mode .wx-sub,
+body.light-mode .command-sub,
+body.light-mode .group-label,
+body.light-mode .op-label{
+  color:#555!important;
+}
+
+/* HEADER + PANELS */
+body.light-mode header{
+  background:#b30000;
+}
+
+body.light-mode .command-header,
+body.light-mode .weather-strip,
+body.light-mode .card,
+body.light-mode .weather-card,
+body.light-mode .command-panel,
+body.light-mode .overdue-panel,
+body.light-mode .tasks-page-item,
+body.light-mode .modal-box{
+  background:#fff!important;
+  border-color:#d0d0d0!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+
+/* INPUTS */
+body.light-mode input,
+body.light-mode textarea,
+body.light-mode select{
+  background:#f8f8f8!important;
+  color:#151515!important;
+  border-color:#ccc!important;
+}
+
+/* STATUS COLORS */
+body.light-mode .card.status-urgent .card-name{
+  color:#b30000!important;
+}
+
+body.light-mode .card.status-soon .card-name{
+  color:#9a6700!important;
+}
+
+body.light-mode .card.status-ongoing .card-name{
+  color:#0f6b44!important;
+}
+
+body.light-mode .card.status-pipeline .card-name{
+  color:#1d4f91!important;
+}
+
+/* BUTTONS */
+body.light-mode .btn{
+  color:#333;
+  border-color:#bbb;
+}
+
+body.light-mode .btn:hover{
+  background:#f1f1f1;
+}
+
+body.light-mode .theme-toggle-btn{
+  background:#fff;
+  color:#151515;
+  border:1px solid #ccc;
+}
+
+
+
+#themeToggleBtn{
+  min-width:auto!important;
+  padding:8px 10px!important;
+  font-size:13px!important;
+}
+
+@media print{
+
+  *{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+
+  @page{
+    size:landscape;
+    margin:14mm;
+  }
+
+  body{
+    background:#fff!important;
+    color:#000!important;
+    font-family:Arial,sans-serif;
+    font-size:10pt;
+  }
+
+  header,
+  .div-tabs,
+  .status-tabs,
+  .search-wrap,
+  .fab,
+  .weather-strip,
+  .command-pills,
+  .tasks-toggle,
+  .emg-toggle,
+  .add-row,
+  .card-btns,
+  .overdue-panel,
+  .command-panel,
+  .group-chevron{
+    display:none!important;
+  }
+
+  .command-header{
+    display:block!important;
+    background:#fff!important;
+    border:none!important;
+    padding:0 0 10px 0!important;
+    margin-bottom:14px!important;
+  }
+
+  .command-title{
+    color:#000!important;
+    font-size:24pt!important;
+    font-weight:700!important;
+  }
+
+  .command-sub{
+    color:#444!important;
+    font-size:10pt!important;
+    margin-top:4px!important;
+  }
+
+  .board::before{
+    content:"SALCO GROUP — OPERATIONS STATUS REPORT";
+    display:block;
+    font-size:22pt;
+    font-weight:700;
+    margin-bottom:6px;
+    color:#000;
+  }
+
+  .board::after{
+    content:"Generated from Salco Job Board";
+    display:block;
+    font-size:9pt;
+    color:#666;
+    margin-top:6px;
+    margin-bottom:14px;
+  }
+
+  .group-header{
+    margin-top:12px!important;
+    margin-bottom:6px!important;
+  }
+
+  .group-label{
+    color:#000!important;
+    font-size:11pt!important;
+    font-weight:700!important;
+    border-bottom:1px solid #ccc;
+    padding-bottom:4px;
+    margin-bottom:6px;
+  }
+
+  .group-content{
+    display:block!important;
+  }
+
+  .card{
+    background:#fff!important;
+    border:1px solid #ccc!important;
+    border-left:5px solid #cc0000!important;
+    border-radius:6px!important;
+    padding:10px 12px!important;
+    margin-bottom:10px!important;
+    page-break-inside:avoid!important;
+    break-inside:avoid!important;
+    box-shadow:none!important;
+  }
+
+  .card-name{
+    color:#000!important;
+    font-size:15pt!important;
+    font-weight:700!important;
+  }
+
+  .card-scope{
+    color:#444!important;
+    font-size:10pt!important;
+    margin-top:3px!important;
+  }
+
+  .card-notes{
+    color:#555!important;
+    font-size:9pt!important;
+    margin-top:6px!important;
+    font-style:italic!important;
+  }
+
+  .tags{
+    margin-top:8px!important;
+  }
+
+  .tag{
+    border:1px solid #ccc!important;
+    background:#f5f5f5!important;
+    color:#000!important;
+    font-size:8pt!important;
+  }
+
+  .op-row{
+    display:grid!important;
+    grid-template-columns:repeat(6,1fr)!important;
+    gap:6px!important;
+    background:#fafafa!important;
+    border:1px solid #ddd!important;
+    padding:8px!important;
+    overflow:visible!important;
+    margin-top:8px!important;
+  }
+
+  .op-label{
+    color:#666!important;
+    font-size:8pt!important;
+  }
+
+  .op-value{
+    background:#fff!important;
+    border:1px solid #ddd!important;
+    color:#000!important;
+    font-size:9pt!important;
+    overflow:visible!important;
+    text-overflow:unset!important;
+    white-space:nowrap!important;
+  }
+
+  .tasklist,
+  .emg-list{
+    display:block!important;
+    border-top:1px solid #ddd!important;
+    margin-top:8px!important;
+    padding-top:8px!important;
+  }
+
+  .task{
+    padding:5px 0!important;
+    border-bottom:1px solid #eee!important;
+  }
+
+  .task-text{
+    color:#000!important;
+    font-size:9pt!important;
+  }
+
+  .task.done .task-text{
+    color:#777!important;
+  }
+
+  .task-due{
+    color:#cc0000!important;
+    font-size:8pt!important;
+  }
+
+  .emg-entry{
+    background:#fff5f5!important;
+    border:1px solid #ffcccc!important;
+    padding:8px!important;
+  }
+
+  .emg-type{
+    color:#cc0000!important;
+  }
+
+}
+
+
+/* ===== HIGH CONTRAST LIGHT MODE TUNING ===== */
+
+body.light-mode{
+  background:#e8e8e8!important;
+}
+
+/* MAIN CARD TEXT */
+body.light-mode .card-name{
+  color:#0f0f0f!important;
+  font-weight:800!important;
+  letter-spacing:.2px;
+  text-shadow:none!important;
+}
+
+body.light-mode .card-scope{
+  color:#2b2b2b!important;
+  font-weight:600!important;
+}
+
+body.light-mode .card-notes{
+  color:#4a4a4a!important;
+  font-weight:500!important;
+}
+
+/* STATUS OVERRIDES */
+body.light-mode .card.status-urgent .card-name{
+  color:#8f0000!important;
+}
+
+body.light-mode .card.status-soon .card-name{
+  color:#8a5b00!important;
+}
+
+body.light-mode .card.status-ongoing .card-name{
+  color:#005f3c!important;
+}
+
+body.light-mode .card.status-pipeline .card-name{
+  color:#003f85!important;
+}
+
+/* OPERATIONS ROW */
+body.light-mode .op-row{
+  background:#efefef!important;
+  border:1px solid #c7c7c7!important;
+}
+
+body.light-mode .op-label{
+  color:#444!important;
+  font-weight:700!important;
+}
+
+body.light-mode .op-value{
+  background:#ffffff!important;
+  color:#111!important;
+  border:1px solid #cfcfcf!important;
+  font-weight:800!important;
+}
+
+/* TASKS */
+body.light-mode .task-text,
+body.light-mode .tasks-page-text{
+  color:#101010!important;
+  font-weight:600!important;
+}
+
+body.light-mode .task.done .task-text{
+  color:#7a7a7a!important;
+}
+
+/* COMMAND HEADER */
+body.light-mode .command-title{
+  color:#0d0d0d!important;
+  font-weight:800!important;
+}
+
+body.light-mode .command-sub{
+  color:#444!important;
+  font-weight:600!important;
+}
+
+/* WEATHER */
+body.light-mode .wx-main,
+body.light-mode .wx-temp{
+  color:#111!important;
+  font-weight:800!important;
+}
+
+body.light-mode .wx-day{
+  color:#444!important;
+}
+
+/* PILLS */
+body.light-mode .command-pill{
+  background:#fff!important;
+  color:#111!important;
+  border:1px solid #c7c7c7!important;
+  font-weight:800!important;
+}
+
+/* BUTTONS */
+body.light-mode .btn,
+body.light-mode .hdr-btn{
+  color:#111!important;
+  font-weight:700!important;
+}
+
+/* INPUT PLACEHOLDERS */
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder{
+  color:#777!important;
+}
+
+/* TAGS */
+body.light-mode .tag{
+  font-weight:700!important;
+  border:1px solid rgba(0,0,0,.08);
+}
+
+/* CARD DEPTH */
+body.light-mode .card{
+  box-shadow:
+    0 1px 2px rgba(0,0,0,.04),
+    0 3px 10px rgba(0,0,0,.05)!important;
+}
+
+
+
+/* ===== FINAL LIGHT MODE VISIBILITY FIXES ===== */
+
+/* FORCE BLACK TEXT */
+body.light-mode,
+body.light-mode *{
+  text-shadow:none!important;
+}
+
+body.light-mode .card-name,
+body.light-mode .card-scope,
+body.light-mode .card-notes,
+body.light-mode .task-text,
+body.light-mode .tasks-page-text,
+body.light-mode .task-due,
+body.light-mode .command-title,
+body.light-mode .command-sub,
+body.light-mode .group-label,
+body.light-mode .op-label,
+body.light-mode .op-value,
+body.light-mode .wx-main,
+body.light-mode .wx-temp,
+body.light-mode .wx-sub,
+body.light-mode .wx-day,
+body.light-mode .command-item,
+body.light-mode .empty-msg,
+body.light-mode .emg-desc,
+body.light-mode .emg-job-name,
+body.light-mode .emg-card-meta,
+body.light-mode .tasks-lbl,
+body.light-mode .emg-lbl{
+  color:#000!important;
+}
+
+/* STATUS TITLES STILL KEEP THEIR IDENTITY */
+body.light-mode .card.status-urgent .card-name{
+  color:#7a0000!important;
+}
+
+body.light-mode .card.status-soon .card-name{
+  color:#7a5200!important;
+}
+
+body.light-mode .card.status-ongoing .card-name{
+  color:#004d31!important;
+}
+
+body.light-mode .card.status-pipeline .card-name{
+  color:#003b7a!important;
+}
+
+/* TAG VISIBILITY FIX */
+body.light-mode .tag.red{
+  background:#ffd9d9!important;
+  color:#7a0000!important;
+  border:1px solid #cc8d8d!important;
+}
+
+body.light-mode .tag.amber{
+  background:#ffeebf!important;
+  color:#6a4b00!important;
+  border:1px solid #d9bc73!important;
+}
+
+body.light-mode .tag.green{
+  background:#d7f5e5!important;
+  color:#004d31!important;
+  border:1px solid #8bc9ab!important;
+}
+
+body.light-mode .tag.blue{
+  background:#dcecff!important;
+  color:#003b7a!important;
+  border:1px solid #93b7e8!important;
+}
+
+/* WEATHER + PANELS */
+body.light-mode .weather-card,
+body.light-mode .command-panel,
+body.light-mode .overdue-panel,
+body.light-mode .tasks-page-item,
+body.light-mode .modal-box,
+body.light-mode .card{
+  background:#fff!important;
+}
+
+/* INPUTS */
+body.light-mode input,
+body.light-mode textarea,
+body.light-mode select{
+  color:#000!important;
+  font-weight:600!important;
+}
+
+/* BUTTONS */
+body.light-mode .btn,
+body.light-mode .hdr-btn,
+body.light-mode .add-task-btn,
+body.light-mode .task-save-btn{
+  font-weight:800!important;
+}
+
+/* MUTED TEXT REMOVAL */
+body.light-mode .card-notes,
+body.light-mode .command-sub,
+body.light-mode .task-due{
+  opacity:1!important;
+}
+
+
+
+
+
+/* ===== FULL DISPATCH RIBBON ===== */
+
+.ops-ribbon{
+  background:linear-gradient(180deg,#111,#0c0c0c);
+  border-top:1px solid #2d2d2d;
+  border-bottom:2px solid #990000;
+  padding:8px 10px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.ops-ribbon::-webkit-scrollbar{
+  display:none;
+}
+
+.ops-ribbon-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  color:#fff;
+  margin-bottom:6px;
+}
+
+.ops-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(170px,1fr));
+  gap:6px;
+  min-width:1220px;
+}
+
+.ops-day{
+  background:#161616;
+  border:1px solid #2d2d2d;
+  border-radius:6px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.ops-day-head{
+  background:#1f1f1f;
+  padding:6px 8px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1px;
+  color:#fff;
+  border-bottom:1px solid #2d2d2d;
+}
+
+.ops-day-body{
+  max-height:180px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+}
+
+.ops-job-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 8px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+
+.ops-job-row:last-child{
+  border-bottom:none;
+}
+
+.ops-indicator{
+  width:4px;
+  height:28px;
+  border-radius:2px;
+  flex-shrink:0;
+}
+
+.ops-indicator.red{
+  background:#cc0000;
+}
+
+.ops-indicator.yellow{
+  background:#d4a017;
+}
+
+.ops-indicator.green{
+  background:#2ecc71;
+}
+
+.ops-indicator.blue{
+  background:#5ca9ff;
+}
+
+.ops-job-info{
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  min-width:0;
+}
+
+.ops-job{
+  font-size:11px;
+  font-weight:800;
+  color:#fff;
+  line-height:1.1;
+}
+
+.ops-meta{
+  font-size:9px;
+  color:#bfbfbf;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+
+.ops-none{
+  opacity:.35;
+  padding:10px 8px;
+  font-size:11px;
+  color:#999;
+}
+
+/* LIGHT MODE */
+
+body.light-mode .ops-ribbon{
+  background:#f3f3f3!important;
+  border-top:1px solid #d0d0d0!important;
+  border-bottom:2px solid #b30000!important;
+}
+
+body.light-mode .ops-ribbon-title,
+body.light-mode .ops-day-head,
+body.light-mode .ops-job,
+body.light-mode .ops-meta{
+  color:#000!important;
+}
+
+body.light-mode .ops-day{
+  background:#fff!important;
+  border:1px solid #d4d4d4!important;
+}
+
+body.light-mode .ops-day-head{
+  background:#efefef!important;
+  border-bottom:1px solid #d4d4d4!important;
+}
+
+
+
+
+
+
+/* ===== WORKDAY SELECTOR ===== */
+
+.workdays{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+
+.workday{
+  width:26px;
+  height:26px;
+  border-radius:6px;
+  border:1px solid #444;
+  background:#1c1c1c;
+  color:#888;
+  font-size:11px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:.15s;
+  user-select:none;
+}
+
+.workday.active{
+  background:#cc0000;
+  border-color:#cc0000;
+  color:#fff;
+}
+
+.workday:hover{
+  transform:translateY(-1px);
+}
+
+body.light-mode .workday{
+  background:#f3f3f3!important;
+  border:1px solid #ccc!important;
+  color:#444!important;
+}
+
+body.light-mode .workday.active{
+  background:#b30000!important;
+  border-color:#b30000!important;
+  color:#fff!important;
+}
+
+.workdays-inline{
+  display:flex;
+  gap:4px;
+  margin-top:8px;
+  flex-wrap:wrap;
+}
+
+.workdays-inline .wd{
+  width:22px;
+  height:22px;
+  border-radius:5px;
+  font-size:10px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+  color:#666;
+  border:1px solid #333;
+  cursor:pointer;
+}
+
+.workdays-inline .wd.on{
+  background:#cc0000;
+  color:#fff;
+  border-color:#cc0000;
+}
+
+body.light-mode .workdays-inline .wd{
+  background:#efefef!important;
+  color:#444!important;
+  border-color:#ccc!important;
+}
+
+body.light-mode .workdays-inline .wd.on{
+  background:#b30000!important;
+  color:#fff!important;
+  border-color:#b30000!important;
+}
+
+
+
+/* ===== AUTH + READ ONLY MODE ===== */
+.login-screen{
+  position:fixed;
+  inset:0;
+  background:linear-gradient(135deg,#050505,#181818);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  padding:20px;
+}
+.login-screen.hidden{display:none;}
+.login-card{
+  width:100%;
+  max-width:390px;
+  background:#1e1e1e;
+  border:1px solid #333;
+  border-radius:14px;
+  padding:24px;
+  box-shadow:0 10px 40px rgba(0,0,0,.45);
+}
+.login-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:28px;
+  font-weight:800;
+  letter-spacing:1.5px;
+  color:#fff;
+  margin-bottom:4px;
+}
+.login-subtitle{color:#aaa;font-size:13px;margin-bottom:20px;}
+.login-field{margin-bottom:14px;}
+.login-field label{
+  display:block;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:#bbb;
+  margin-bottom:5px;
+}
+.login-field input{
+  width:100%;
+  background:#111;
+  border:1px solid #3a3a3a;
+  border-radius:7px;
+  color:#fff;
+  padding:10px 12px;
+  font-size:15px;
+  outline:none;
+}
+.login-field input:focus{border-color:#cc0000;}
+.login-btn{
+  width:100%;
+  background:#cc0000;
+  border:none;
+  border-radius:7px;
+  color:#fff;
+  padding:11px 14px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;
+  letter-spacing:1px;
+  cursor:pointer;
+  margin-top:4px;
+}
+.login-error{min-height:18px;color:#ff7777;font-size:12px;margin-top:10px;}
+.login-note{color:#888;font-size:11px;line-height:1.4;margin-top:12px;}
+.role-badge{
+  border-radius:999px;
+  padding:5px 9px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  border:1px solid #fff;
+  color:#fff;
+}
+.role-badge.editor{background:#2a8a5e;border-color:#6ee0a0;}
+.role-badge.reader{background:#333;border-color:#aaa;}
+body.read-only .fab,
+body.read-only .card-btns,
+body.read-only .add-row,
+body.read-only .task-actions,
+body.read-only .tag-row,
+body.read-only .btn-save,
+body.read-only .workdays-inline,
+body.read-only .workdays{display:none!important;}
+body.read-only input[type="checkbox"]{pointer-events:none;}
+body.read-only .tag{cursor:default!important;}
+body.light-mode .login-screen{background:#e8e8e8!important;}
+body.light-mode .login-card{background:#fff!important;border-color:#d0d0d0!important;}
+body.light-mode .login-title,
+body.light-mode .login-field label{color:#111!important;}
+body.light-mode .login-subtitle,
+body.light-mode .login-note{color:#555!important;}
+body.light-mode .login-field input{
+  background:#f8f8f8!important;
+  color:#111!important;
+  border-color:#ccc!important;
+}
+
+
+.division-toggle-bar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding:10px 12px;
+  background:#101010;
+  border-top:1px solid #2d2d2d;
+  border-bottom:1px solid #2d2d2d;
+  position:sticky;
+  top:56px;
+  z-index:30;
+}
+.division-filter-btn{
+  border:none;
+  padding:8px 16px;
+  border-radius:999px;
+  background:#262626;
+  color:#d8d8d8;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.8px;
+  cursor:pointer;
+  transition:.18s ease;
+}
+.division-filter-btn:hover{transform:translateY(-1px);}
+.division-filter-btn.active{
+  background:#cc0000;
+  color:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,.12);
+}
+body.light-mode .division-toggle-bar{
+  background:#f1f1f1!important;
+  border-color:#d0d0d0!important;
+}
+body.light-mode .division-filter-btn{
+  background:#fff!important;
+  color:#111!important;
+  border:1px solid #ccc!important;
+}
+body.light-mode .division-filter-btn.active{
+  background:#b30000!important;
+  color:#fff!important;
+  border-color:#b30000!important;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <span class="hdr-title">Salco Job Board v6.6</span>
+  <div class="hdr-right">
+    <span class="sync-dot" id="sync-dot" title="Sync status"></span>
+
+    <button
+      class="hdr-btn theme-toggle-btn"
+      id="themeToggleBtn"
+      onclick="toggleTheme()"
+    >
+      🌙 Dark
+    </button>
+
+    <span class="role-badge" id="roleBadge" style="display:none;">READ ONLY</span>
+    <button class="hdr-btn" id="logoutBtn" onclick="logout()" style="display:none;">Logout</button>
+    <button class="hdr-btn" onclick="toggleAutoScroll()">⇅ Scroll</button>
+    <button class="hdr-btn" onclick="exportPDF()">⬇ PDF</button>
+  </div>
+</header>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-title">SALCO JOB BOARD</div>
+    <div class="login-subtitle">Operations Dashboard Login</div>
+
+    <div class="login-field">
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="name@company.com" autocomplete="email">
+    </div>
+
+    <div class="login-field">
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+
+    <button class="login-btn" onclick="login()">Login</button>
+
+    <div class="login-error" id="loginError"></div>
+    <div class="login-note">
+      Editors can update the live board. Readers have view-only access.
+    </div>
+  </div>
+</div>
+
+
+<div class="command-header">
+  <div class="command-left">
+    <div class="command-title">SALCO JOB BOARD</div>
+    <div class="command-sub" id="liveDateTime">LOADING...</div>
+  </div>
+
+  <div class="command-pills">
+    
+<div class="command-dropdown">
+  <div class="command-pill pill-active" id="pillActive" onclick="togglePanel('activePanel')">
+    🏗 0 ACTIVE
+  </div>
+  <div class="command-panel" id="activePanel">
+    <div id="activeContent"></div>
+  </div>
+</div>
+
+    
+<div class="command-dropdown">
+  <div class="command-pill pill-workers" id="pillWorkers" onclick="togglePanel('workersPanel')">
+    👷 0 WORKERS
+  </div>
+  <div class="command-panel" id="workersPanel">
+    <div id="workersContent"></div>
+  </div>
+</div>
+
+    
+<div class="command-dropdown">
+  <div class="command-pill pill-mobilizing" id="pillMobilizing" onclick="togglePanel('mobilizingPanel')">
+    📅 0 MOBILIZING
+  </div>
+  <div class="command-panel" id="mobilizingPanel">
+    <div id="mobilizingContent"></div>
+  </div>
+</div>
+
+    <div class="command-pill pill-emergency" id="pillEmergency">🚨 0 EMERGENCY</div>
+    
+<div class="overdue-dropdown">
+  <div class="command-pill pill-overdue" id="pillOverdue" onclick="toggleOverduePanel()">
+    ⚠ 0 OVERDUE
+  </div>
+
+  <div class="overdue-panel" id="overduePanel">
+    <div id="overdueContent"></div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<div id="emergencyBanner" class="emergency-banner" style="display:none;">
+  🚨 ACTIVE INCIDENT
+</div>
+
+
+
+
+<div class="division-toggle-bar">
+  <button class="division-filter-btn active" data-filter="mixed" onclick="setRibbonFilter('mixed',this)">MIXED</button>
+  <button class="division-filter-btn" data-filter="sgd" onclick="setRibbonFilter('sgd',this)">SGD</button>
+  <button class="division-filter-btn" data-filter="sgc" onclick="setRibbonFilter('sgc',this)">SGC</button>
+</div>
+
+<div class="ops-ribbon" id="opsRibbon">
+  <div class="ops-ribbon-title">NEXT 7 DAYS — OPERATIONS OUTLOOK</div>
+  <div class="ops-grid" id="opsGrid"></div>
+</div>
+
+
+<div class="weather-strip" id="weatherStrip">
+  <div class="weather-card today">
+    <div class="wx-day">EDMONTON OPS</div>
+    <div class="wx-main" id="wx-today-main">⛅ --°</div>
+    <div class="wx-sub" id="wx-today-sub">WIND -- KM/H</div>
+    <div class="weather-alert safe" id="wx-today-alert">🟢 LOADING</div>
+  </div>
+</div>
+
+
+<div class="div-tabs">
+  <button class="div-tab active" onclick="switchDiv('sgd',this)">SGD — Demolition</button>
+  <button class="div-tab" onclick="switchDiv('sgc',this)">SGC — Construction</button>
+  <button class="div-tab emergency-div" onclick="switchDiv('emergencies',this)">🚨 Emergencies</button>
+</div>
+
+<div class="status-tabs" id="status-tabs">
+  <button class="status-tab active" onclick="switchStatus('active',this)">Active</button>
+  <button class="status-tab" onclick="switchStatus('completed',this)">Completed</button>
+  <button class="status-tab" onclick="switchStatus('pipeline',this)">Pipeline</button>
+  <button class="status-tab" onclick="switchStatus('tasks',this)">Tasks</button>
+</div>
+
+<div class="search-wrap" id="search-wrap">
+  <input id="search" placeholder="Search jobs, tags, crews…" oninput="render()">
+</div>
+
+<div class="board" id="board"></div>
+
+<button class="fab" id="fab" onclick="openAddJob()" title="Add job">+</button>
+
+<!-- JOB MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">Add Job</div>
+    <div class="field"><label>Job name</label><input id="f-name" placeholder="e.g. EIA Washrooms"></div>
+    <div class="field"><label>Scope</label><input id="f-scope" placeholder="e.g. Abatement"></div>
+    <div class="field"><label>Status</label>
+      <select id="f-status">
+        <option value="urgent">Immediate</option>
+        <option value="soon">Coming Soon</option>
+        <option value="ongoing">Ongoing</option>
+        <option value="hold">On Hold</option>
+        <option value="pipeline">Pipeline</option>
+      </select>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Any additional notes…"></textarea></div>
+
+    <div class="field">
+      <label>Start Date</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="date" id="f-start-date" style="flex:1;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+          <input type="checkbox" id="f-tbd">
+          TBD
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Operations Row</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <input id="f-manpower" placeholder="Manpower">
+        <input id="f-hours" placeholder="Hours / Day">
+        <input id="f-days" placeholder="Days">
+        <input id="f-super" placeholder="Superintendent">
+        <input id="f-pm" placeholder="Project Manager">
+        <input id="f-crew-size" placeholder="Crew Size">
+      </div>
+
+      <div style="margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+          <input type="checkbox" id="f-pinned">
+          Pin Job To Top
+        </label>
+      </div>
+    </div>
+    
+
+    <div class="field">
+      <label>Work Days</label>
+
+      <div class="workdays" id="workdaySelector">
+        <div class="workday active" data-day="mon" onclick="this.classList.toggle('active')">M</div>
+        <div class="workday active" data-day="tue" onclick="this.classList.toggle('active')">T</div>
+        <div class="workday active" data-day="wed" onclick="this.classList.toggle('active')">W</div>
+        <div class="workday active" data-day="thu" onclick="this.classList.toggle('active')">T</div>
+        <div class="workday active" data-day="fri" onclick="this.classList.toggle('active')">F</div>
+        <div class="workday" data-day="sat" onclick="this.classList.toggle('active')">S</div>
+        <div class="workday" data-day="sun" onclick="this.classList.toggle('active')">S</div>
+      </div>
+    </div>
+
+
+<div class="field">
+      <label>Tags</label>
+      <div id="tag-list"></div>
+      <div class="tag-row">
+        <input id="tag-text" placeholder="Tag text">
+        <select id="tag-color">
+          <option value="red">Red</option>
+          <option value="amber">Amber</option>
+          <option value="green">Green</option>
+          <option value="blue">Blue</option>
+        </select>
+        <button class="btn" onclick="addTagToEdit()">+ Tag</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveJob()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMERGENCY MODAL -->
+<div class="modal" id="emg-modal">
+  <div class="modal-box">
+    <div class="modal-title emergency">🚨 Log Operational Emergency</div>
+    <div id="emg-job-label" style="font-size:13px;color:var(--muted);margin-bottom:12px;"></div>
+    <div class="field"><label>Type</label>
+      <select id="emg-type">
+        <option value="Injury">Injury</option>
+        <option value="Near Miss">Near Miss</option>
+        <option value="Equipment Failure">Equipment Failure</option>
+        <option value="Environmental">Environmental</option>
+        <option value="Operational Delay">Operational Delay</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Description</label><textarea id="emg-desc" placeholder="Describe what happened…"></textarea></div>
+    <div class="field"><label>Logged by</label><input id="emg-by" placeholder="Your name"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeEmgModal()">Cancel</button>
+      <button class="btn-save emergency" onclick="saveEmergency()">🚨 Log Emergency</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://trzkdkwjqmzzvccwlqxg.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyemtka3dqcW16enZjY3dscXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzU1MjQsImV4cCI6MjA5NTA1MTUyNH0.Fi01ZeloQ-XBljX7RlMED20LzybEdiFewAMy1GdQPmE';
+let currentSession=null;
+let currentUser=null;
+let currentUserRole=null;
+
+function authHeaders(){
+  return {
+    'Content-Type':'application/json',
+    'apikey':SUPABASE_KEY,
+    'Authorization':'Bearer '+(currentSession?.access_token || SUPABASE_KEY)
+  };
+}
+
+function canEdit(){
+  return currentUserRole==='editor';
+}
+
+function requireEditor(){
+  if(canEdit()) return true;
+  alert('Read-only access. You do not have permission to edit the live board.');
+  return false;
+}
+
+function isWriteMethod(method){
+  return ['POST','PATCH','PUT','DELETE'].includes((method||'GET').toUpperCase());
+}
+
+let allJobs=[], allEmergencies=[];
+let curDiv='sgd', curStatus='active';
+let editingId=null, editingTags=[];
+let emgJobId=null, dragId=null;
+const openTasks={}, openEmg={}, collapsedGroups={}, editingTasks={};
+
+
+function toggleTheme(){
+
+  const body=document.body;
+
+  body.classList.toggle('light-mode');
+
+  const isLight=body.classList.contains('light-mode');
+
+  localStorage.setItem('salco_theme',isLight?'light':'dark');
+
+  const btn=document.getElementById('themeToggleBtn');
+
+  if(btn){
+    btn.innerHTML=isLight ? '☀️ Light' : '🌙 Dark';
+  }
+}
+
+function loadTheme(){
+
+  const saved=localStorage.getItem('salco_theme');
+
+  if(saved==='light'){
+    document.body.classList.add('light-mode');
+
+    const btn=document.getElementById('themeToggleBtn');
+
+    if(btn){
+      btn.innerHTML='☀️ Light';
+    }
+  }
+}
+
+
+
+const DEFAULT_WORKDAYS={
+  mon:true,
+  tue:true,
+  wed:true,
+  thu:true,
+  fri:true,
+  sat:false,
+  sun:false
+};
+
+function parseLocalDate(dateStr){
+  if(!dateStr) return null;
+
+  const parts=String(dateStr).split('-').map(Number);
+
+  if(parts.length!==3 || parts.some(isNaN)){
+    return null;
+  }
+
+  return new Date(parts[0], parts[1]-1, parts[2]);
+}
+
+function daysUntilLocal(dateStr){
+  const start=parseLocalDate(dateStr);
+
+  if(!start) return null;
+
+  const today=new Date();
+  today.setHours(0,0,0,0);
+
+  return Math.ceil((start-today)/(1000*60*60*24));
+}
+
+
+function getSelectedWorkdays(){
+
+  const result={
+    mon:false,
+    tue:false,
+    wed:false,
+    thu:false,
+    fri:false,
+    sat:false,
+    sun:false
+  };
+
+  document.querySelectorAll('#workdaySelector .workday').forEach(el=>{
+
+    const key=el.dataset.day;
+
+    result[key]=el.classList.contains('active');
+  });
+
+  return result;
+}
+
+function setSelectedWorkdays(data){
+
+  const days={
+    ...DEFAULT_WORKDAYS,
+    ...(data || {})
+  };
+
+  document.querySelectorAll('#workdaySelector .workday').forEach(el=>{
+
+    const key=el.dataset.day;
+
+    if(days[key]){
+      el.classList.add('active');
+    }else{
+      el.classList.remove('active');
+    }
+  });
+}
+
+
+
+
+
+function saveLocalBackup(){
+  localStorage.setItem('salco_jobs_backup',JSON.stringify(allJobs));
+  localStorage.setItem('salco_emg_backup',JSON.stringify(allEmergencies));
+}
+
+function loadLocalBackup(){
+  try{
+    const jobs=localStorage.getItem('salco_jobs_backup');
+    const emg=localStorage.getItem('salco_emg_backup');
+
+    if(jobs) allJobs=JSON.parse(jobs);
+    if(emg) allEmergencies=JSON.parse(emg);
+  }catch(err){
+    console.error('Local cache failed',err);
+  }
+}
+
+function updateEmergencyBanner(){
+  const banner=document.getElementById('emergencyBanner');
+
+  if(!banner) return;
+
+  if(allEmergencies.length>0){
+    const latest=allEmergencies[0];
+    banner.style.display='block';
+    banner.innerHTML=`🚨 ACTIVE INCIDENT — ${latest.job_name || 'UNKNOWN SITE'}`;
+  }else{
+    banner.style.display='none';
+  }
+}
+
+function toggleGroup(group){
+  collapsedGroups[group]=!collapsedGroups[group];
+  render();
+}
+
+
+function setSyncStatus(s){
+  const d=document.getElementById('sync-dot');
+  d.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'');
+  d.title=s==='syncing'?'Saving…':s==='error'?'Sync error':'Saved';
+}
+
+// Single consolidated re-render call — replaces the repeated 8-line block throughout the file
+/* ===== ABATEMENT AUTO-TASKS ===== */
+const ABATEMENT_TASKS=['NOP Filed','DOPs Scheduled','Site Mobilized'];
+
+function isAbatementJob(job){
+  const hay=[job.name,job.scope,...(job.tags||[]).map(t=>t.text)].join(' ').toLowerCase();
+  return hay.includes('abatement');
+}
+
+// Adds any missing standard abatement tasks. Returns true if something was added.
+function ensureAbatementTasks(job){
+  if(!isAbatementJob(job)) return false;
+  job.tasks=job.tasks||[];
+  const have=new Set(job.tasks.map(t=>(t.text||'').trim().toLowerCase()));
+  let added=false;
+  ABATEMENT_TASKS.forEach(text=>{
+    if(!have.has(text.toLowerCase())){
+      job.tasks.push({
+        text,
+        done:false,
+        dueDate:(text==='Site Mobilized' && !job.tbd) ? (job.startDate||'') : ''
+      });
+      added=true;
+    }
+  });
+  return added;
+}
+
+function refreshAll(){
+  updateDashboard();
+  saveLocalBackup();
+  updateEmergencyBanner();
+  renderOverduePanel();
+  renderActivePanel();
+  renderWorkersPanel();
+  renderMobilizingPanel();
+  renderOpsRibbon();
+  render();
+}
+
+async function api(path,method='GET',body=null){
+  if(isWriteMethod(method) && !canEdit()){
+    throw new Error('Read-only access blocked write request.');
+  }
+
+  const opts={method,headers:authHeaders()};
+  if(body) opts.body=JSON.stringify(body);
+
+  const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,opts);
+
+  if(r.status===401 || r.status===403){
+    throw new Error('Unauthorized or blocked by Supabase policy.');
+  }
+
+  if(!r.ok) throw new Error(await r.text());
+
+  const txt=await r.text();
+  return txt?JSON.parse(txt):null;
+}
+
+function normalizeJob(j,i){
+  return {
+    ...j,
+    division:j.division||'sgd',
+    sortOrder:j.sort_order!=null?j.sort_order:(j.sortOrder!=null?j.sortOrder:i),
+    notes:j.notes||'',
+    completed:j.completed||false,
+    tags:(j.tags||[]).map(t=>({text:t.text||t.t||'',color:t.color||t.c||'blue'})),
+    tasks:(j.tasks||[]).map(t=>({text:t.text||'',done:t.done||false,dueDate:t.dueDate||''})),
+    startDate:j.startDate||'',
+    tbd:j.tbd||false,
+    manpower:j.manpower||'',
+    hours:j.hours||'',
+    days:j.days||'',
+    superintendent:j.superintendent||'',
+    pm:j.pm||'',
+    crewSize:j.crewSize||'',
+    pinned:j.pinned||false,
+    workDays:{
+      mon: j.workDays?.mon ?? true,
+      tue: j.workDays?.tue ?? true,
+      wed: j.workDays?.wed ?? true,
+      thu: j.workDays?.thu ?? true,
+      fri: j.workDays?.fri ?? true,
+      sat: j.workDays?.sat ?? false,
+      sun: j.workDays?.sun ?? false
+    }
+  };
+}
+
+
+
+
+async function login(){
+  const email=document.getElementById('loginEmail')?.value.trim();
+  const password=document.getElementById('loginPassword')?.value;
+  const err=document.getElementById('loginError');
+  const loginBtn=document.querySelector('.login-btn');
+
+  if(err) err.textContent='';
+
+  if(!email || !password){
+    if(err) err.textContent='Enter email and password.';
+    return;
+  }
+
+  try{
+    if(loginBtn){
+      loginBtn.disabled=true;
+      loginBtn.textContent='Logging in...';
+      loginBtn.style.opacity='.75';
+    }
+    setSyncStatus('syncing');
+
+    const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_KEY
+      },
+      body:JSON.stringify({email,password})
+    });
+
+    const data=await r.json();
+
+    if(!r.ok){
+      throw new Error(data.error_description || data.msg || 'Login failed.');
+    }
+
+    currentSession=data;
+    currentUser=data.user;
+
+    localStorage.setItem('salco_auth_session',JSON.stringify(data));
+
+    await loadUserRole();
+    applyAuthState();
+    await loadAll();
+
+    setSyncStatus('ok');
+  }catch(e){
+    console.error(e);
+    setSyncStatus('error');
+    if(err) err.textContent=e.message || 'Login failed.';
+  }finally{
+    if(loginBtn){
+      loginBtn.disabled=false;
+      loginBtn.textContent='Login';
+      loginBtn.style.opacity='1';
+    }
+  }
+}
+
+async function loadUserRole(){
+  currentUserRole='reader';
+
+  if(!currentUser?.id) return;
+
+  try{
+    const rows=await api('profiles?id=eq.'+currentUser.id+'&select=id,email,role','GET');
+
+    if(rows && rows.length){
+      currentUserRole=rows[0].role || 'reader';
+    }
+  }catch(e){
+    console.warn('Could not load profile role. Defaulting to reader.',e);
+    currentUserRole='reader';
+  }
+}
+
+function applyAuthState(){
+  const loginScreen=document.getElementById('loginScreen');
+  const logoutBtn=document.getElementById('logoutBtn');
+  const roleBadge=document.getElementById('roleBadge');
+
+  if(currentSession){
+    loginScreen?.classList.add('hidden');
+    if(logoutBtn) logoutBtn.style.display='inline-block';
+
+    if(roleBadge){
+      roleBadge.style.display='inline-block';
+      roleBadge.textContent=canEdit()?'EDITOR':'READ ONLY';
+      roleBadge.className='role-badge '+(canEdit()?'editor':'reader');
+    }
+
+    document.body.classList.toggle('read-only',!canEdit());
+  }else{
+    loginScreen?.classList.remove('hidden');
+    if(logoutBtn) logoutBtn.style.display='none';
+    if(roleBadge) roleBadge.style.display='none';
+    document.body.classList.add('read-only');
+  }
+}
+
+async function logout(){
+  try{
+    if(currentSession?.access_token){
+      await fetch(SUPABASE_URL+'/auth/v1/logout',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer '+currentSession.access_token
+        }
+      });
+    }
+  }catch(e){
+    console.warn('Logout request failed locally, clearing session anyway.',e);
+  }
+
+  currentSession=null;
+  currentUser=null;
+  currentUserRole=null;
+  allJobs=[];
+  allEmergencies=[];
+
+  localStorage.removeItem('salco_auth_session');
+
+  applyAuthState();
+  render();
+  updateDashboard();
+}
+
+async function initAuth(){
+  loadTheme();
+  updateLiveDateTime();
+  updateWeatherOps();
+  setInterval(updateWeatherOps, 15*60*1000);
+
+  const saved=localStorage.getItem('salco_auth_session');
+
+  if(saved){
+    try{
+      currentSession=JSON.parse(saved);
+      currentUser=currentSession.user;
+
+      await loadUserRole();
+      applyAuthState();
+      await loadAll();
+      return;
+    }catch(e){
+      console.warn('Saved session could not be restored.',e);
+      localStorage.removeItem('salco_auth_session');
+    }
+  }
+
+  applyAuthState();
+}
+
+
+async function loadAll(){
+  setSyncStatus('syncing');
+  try{
+    const [jobData, emgData] = await Promise.all([
+      api('jobs?order=sort_order.asc,created_at.asc&select=*'),
+      api('emergencies?order=created_at.desc&select=*')
+    ]);
+    if(jobData && Array.isArray(jobData) && jobData.length>0){
+      allJobs=jobData.map((j,i)=>normalizeJob(j,i));
+    } else {
+      console.warn('Empty Supabase payload ignored — preserving local state');
+      if(!allJobs || allJobs.length===0){
+        loadLocalBackup();
+      }
+    }
+    allEmergencies=emgData||[];
+    setSyncStatus('ok');
+  }catch(e){
+    setSyncStatus('error');
+    console.error(e);
+    loadLocalBackup();
+    if(allJobs.length===0){
+      console.warn('No local backup available. Board remains empty until Supabase read succeeds.');
+    }
+  }
+  refreshAll();
+}
+
+function toDbRow(job){
+  return {
+    id: job.id,
+    num: job.num||'--',
+    name: job.name,
+    scope: job.scope||'',
+    status: job.status,
+    tags: job.tags||[],
+    tasks: job.tasks||[],
+    completed: job.completed||false,
+    division: job.division||'sgd',
+    notes: job.notes||'',
+    sort_order: job.sortOrder||0,
+    startDate: job.tbd ? '' : (job.startDate||''),
+    tbd: job.tbd||false,
+    manpower: job.manpower||'',
+    hours: job.hours||'',
+    days: job.days||'',
+    superintendent: job.superintendent||'',
+    pm: job.pm||'',
+    crewSize: job.crewSize||'',
+    pinned: job.pinned||false,
+    workDays: {
+      mon: !!(job.workDays && job.workDays.mon),
+      tue: !!(job.workDays && job.workDays.tue),
+      wed: !!(job.workDays && job.workDays.wed),
+      thu: !!(job.workDays && job.workDays.thu),
+      fri: !!(job.workDays && job.workDays.fri),
+      sat: !!(job.workDays && job.workDays.sat),
+      sun: !!(job.workDays && job.workDays.sun)
+    }
+  };
+}
+async function upsert(job){
+  if(!requireEditor()) return;
+  isSaving=true;
+  setSyncStatus('syncing');
+  try{ await api('jobs?id=eq.'+job.id,'PATCH',toDbRow(job)); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('error'); console.error('upsert error',e); }
+  finally{ isSaving=false; }
+}
+async function insertJob(job){
+  if(!requireEditor()) return;
+  isSaving=true;
+  setSyncStatus('syncing');
+  try{ await api('jobs','POST',toDbRow(job)); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('error'); console.error('insert error',e); }
+  finally{ isSaving=false; }
+}
+async function removeJob(id){
+  if(!requireEditor()) return;
+  isSaving=true;
+  setSyncStatus('syncing');
+  try{ await api('jobs?id=eq.'+id,'DELETE'); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('error'); }
+  finally{ isSaving=false; }
+}
+async function insertEmg(emg){
+  if(!requireEditor()) return;
+  isSaving=true;
+  setSyncStatus('syncing');
+  try{ await api('emergencies','POST',emg); setSyncStatus('ok'); }
+  catch(e){ setSyncStatus('error'); }
+  finally{ isSaving=false; }
+}
+
+const STATUS_ORDER=['urgent','soon','ongoing','hold'];
+const STATUS_LABELS={urgent:'🔴 Immediate',soon:'🟡 Coming Soon',ongoing:'🟢 Ongoing',hold:'⏸ On Hold'};
+
+function jobEmergencies(jid){ return allEmergencies.filter(e=>e.job_id===jid); }
+function hasEmergency(jid){ return jobEmergencies(jid).length>0; }
+
+
+function getStartWarning(j){
+  if(j.tbd) return '📅 TBD';
+  if(!j.startDate) return '';
+
+  const diff=daysUntilLocal(j.startDate);
+
+  if(diff===null) return '';
+
+  if(diff===0) return '📅 Starts Today';
+  if(diff===1) return '📅 Starts Tomorrow';
+  if(diff>1 && diff<=7) return `📅 Starts in ${diff} Days`;
+
+  return '';
+}
+
+
+
+
+function closeAllPanels(){
+  document.querySelectorAll('.command-panel').forEach(p=>{
+    p.classList.remove('open');
+  });
+}
+
+function togglePanel(id){
+  const panel=document.getElementById(id);
+
+  if(!panel) return;
+
+  const isOpen=panel.classList.contains('open');
+
+  closeAllPanels();
+
+  if(!isOpen){
+    panel.classList.add('open');
+  }
+}
+
+function renderActivePanel(){
+  const container=document.getElementById('activeContent');
+
+  if(!container) return;
+
+  const activeJobs=allJobs.filter(j=>j.status==='ongoing' && !j.completed);
+
+  if(activeJobs.length===0){
+    container.innerHTML='<div class="command-empty">No active jobs.</div>';
+    return;
+  }
+
+  let html='';
+
+  activeJobs.forEach(j=>{
+    html+=`
+      <div class="command-section">
+        <div class="command-section-title">${j.name}</div>
+        <div class="command-item">
+          ${j.superintendent || 'No Super'} • ${j.crewSize || j.manpower || '--'} Crew
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML=html;
+}
+
+function renderWorkersPanel(){
+  const container=document.getElementById('workersContent');
+
+  if(!container) return;
+
+  let html='';
+
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dayKey=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
+
+  const jobs=allJobs.filter(j=>{
+    if(j.completed || j.tbd || !j.startDate) return false;
+    if(!(j.crewSize || j.manpower)) return false;
+    const start=parseLocalDate(j.startDate);
+    const duration=parseInt(j.days)||1;
+    const end=new Date(start); end.setDate(start.getDate()+duration-1);
+    const workingToday=j.workDays ? !!j.workDays[dayKey] : ['mon','tue','wed','thu','fri'].includes(dayKey);
+    return today>=start && today<=end && workingToday;
+  });
+
+  if(jobs.length===0){
+    container.innerHTML='<div class="command-empty">No workforce deployment.</div>';
+    return;
+  }
+
+  jobs.forEach(j=>{
+    html+=`
+      <div class="command-section">
+        <div class="command-section-title">${j.name}</div>
+        <div class="command-item">
+          👷 ${j.crewSize || j.manpower}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML=html;
+}
+
+function renderMobilizingPanel(){
+  const container=document.getElementById('mobilizingContent');
+
+  if(!container) return;
+
+  const now=new Date();
+
+  let html='';
+
+  const jobs=[];
+
+  allJobs.forEach(j=>{
+    if(j.startDate && !j.tbd){
+      const diff=daysUntilLocal(j.startDate);
+
+      if(diff>=0 && diff<=3){
+        jobs.push({
+          name:j.name,
+          diff:diff
+        });
+      }
+    }
+  });
+
+  if(jobs.length===0){
+    container.innerHTML='<div class="command-empty">No mobilizations pending.</div>';
+    return;
+  }
+
+  jobs.forEach(j=>{
+    let label='Starts Today';
+
+    if(j.diff===1) label='Starts Tomorrow';
+    if(j.diff>1) label='Starts in '+j.diff+' Days';
+
+    html+=`
+      <div class="command-section">
+        <div class="command-section-title">${j.name}</div>
+        <div class="command-item">
+          📅 ${label}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML=html;
+}
+
+function toggleOverduePanel(){
+  document.getElementById('overduePanel')?.classList.toggle('open');
+}
+
+function renderOverduePanel(){
+  const container=document.getElementById('overdueContent');
+
+  if(!container) return;
+
+  const now=new Date();
+
+  let output='';
+
+  const overdueJobs=[];
+
+  allJobs.forEach(job=>{
+    const overdueTasks=(job.tasks||[]).filter(t=>{
+      if(t.done || !t.dueDate) return false;
+
+      return new Date(t.dueDate) < now;
+    });
+
+    if(overdueTasks.length){
+      overdueJobs.push({
+        job:job.name,
+        tasks:overdueTasks
+      });
+    }
+  });
+
+  if(overdueJobs.length===0){
+    container.innerHTML='<div class="overdue-empty">🟢 No overdue tasks.</div>';
+    return;
+  }
+
+  overdueJobs.forEach(entry=>{
+    output += '<div class="overdue-job">';
+    output += '<div class="overdue-job-name">'+entry.job+'</div>';
+
+    entry.tasks.forEach(t=>{
+      output += '<div class="overdue-task">• '+t.text+'</div>';
+    });
+
+    output += '</div>';
+  });
+
+  container.innerHTML=output;
+}
+
+function updateDashboard(){
+  const jobs=allJobs||[];
+  const emergencies=allEmergencies||[];
+
+  let active=0;
+  let workers=0;
+  let mobilizing=0;
+  let overdue=0;
+
+  const now=new Date();
+
+  jobs.forEach(j=>{
+    if(j.status==='ongoing' && !j.completed){
+      active++;
+    }
+
+    if(!j.completed && !j.tbd && j.startDate){
+      const start=parseLocalDate(j.startDate);
+      const duration=parseInt(j.days)||1;
+      const end=new Date(start);
+      end.setDate(start.getDate()+duration-1);
+      const today=new Date(); today.setHours(0,0,0,0);
+      const dayKey=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
+      const workingToday=j.workDays ? !!j.workDays[dayKey] : ['mon','tue','wed','thu','fri'].includes(dayKey);
+      if(today>=start && today<=end && workingToday){
+        const crew=parseInt(j.manpower||j.crewSize||0);
+        if(!isNaN(crew)) workers+=crew;
+      }
+    }
+
+    if(j.startDate && !j.tbd){
+      const diff=daysUntilLocal(j.startDate);
+
+      if(diff>=0 && diff<=3){
+        mobilizing++;
+      }
+    }
+
+    (j.tasks||[]).forEach(t=>{
+      if(!t.done && t.dueDate){
+        const due=new Date(t.dueDate);
+        if(due<now) overdue++;
+      }
+    });
+  });
+
+  const a=document.getElementById('pillActive');
+  const w=document.getElementById('pillWorkers');
+  const m=document.getElementById('pillMobilizing');
+  const e=document.getElementById('pillEmergency');
+  const o=document.getElementById('pillOverdue');
+
+  if(a) a.innerHTML=`🏗 ${active} ACTIVE`;
+  if(w) w.innerHTML=`👷 ${workers} WORKERS`;
+  if(m) m.innerHTML=`📅 ${mobilizing} MOBILIZING`;
+  if(e) e.innerHTML=`🚨 ${emergencies.length} EMERGENCY`;
+  if(o) o.innerHTML=`⚠ ${overdue} OVERDUE`;
+}
+
+function updateLiveDateTime(){
+  const el=document.getElementById('liveDateTime');
+  if(!el) return;
+
+  const now=new Date();
+
+  el.textContent=now.toLocaleString('en-CA',{
+    weekday:'short',
+    month:'short',
+    day:'numeric',
+    hour:'numeric',
+    minute:'2-digit'
+  }).toUpperCase() + ' • LIVE OPS';
+}
+
+setInterval(updateLiveDateTime,1000);
+window.addEventListener('load',()=>{initAuth();});
+
+function wxCodeToEmoji(code, isDay){
+  if(code===0) return isDay?'☀️':'🌙';
+  if(code<=2) return isDay?'🌤':'🌤';
+  if(code<=3) return '☁️';
+  if(code<=48) return '🌫';
+  if(code<=57) return '🌦';
+  if(code<=67) return '🌧';
+  if(code<=77) return '🌨';
+  if(code<=82) return '🌧';
+  if(code<=86) return '❄️';
+  if(code<=99) return '⛈';
+  return '🌡';
+}
+
+async function updateWeatherOps(){
+  const strip=document.getElementById('weatherStrip');
+  const todayMain=document.getElementById('wx-today-main');
+  const todaySub=document.getElementById('wx-today-sub');
+  const todayAlert=document.getElementById('wx-today-alert');
+
+  try{
+    // Edmonton lat/lng — current weather + 4-day forecast
+    const url='https://api.open-meteo.com/v1/forecast?latitude=53.5461&longitude=-113.4938' +
+      '&current=temperature_2m,weathercode,windspeed_10m,is_day' +
+      '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=America%2FEdmonton&forecast_days=5';
+
+    const res=await fetch(url);
+    const data=await res.json();
+
+    const cur=data.current;
+    const daily=data.daily;
+    const dayNames=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+    // Today card
+    const temp=Math.round(cur.temperature_2m);
+    const wind=Math.round(cur.windspeed_10m);
+    const icon=wxCodeToEmoji(cur.weathercode, cur.is_day);
+
+    todayMain.innerHTML=`${icon} ${temp}°`;
+    todaySub.innerHTML=`WIND ${wind} KM/H`;
+
+    if(wind>=40){
+      todayAlert.className='weather-alert danger';
+      todayAlert.innerHTML='🔴 NO FLY ZONE';
+    }else if(wind>=25){
+      todayAlert.className='weather-alert warning';
+      todayAlert.innerHTML='🟡 WIND CAUTION';
+    }else{
+      todayAlert.className='weather-alert safe';
+      todayAlert.innerHTML='🟢 NORMAL OPS';
+    }
+
+    // Remove old forecast cards, keep today card
+    strip.querySelectorAll('.weather-card:not(.today)').forEach(c=>c.remove());
+
+    // Build forecast cards for next 4 days (index 1-4, skip today at 0)
+    for(let i=1;i<=4;i++){
+      const date=new Date(daily.time[i]+'T00:00:00');
+      const dayLabel=dayNames[date.getDay()];
+      const hi=Math.round(daily.temperature_2m_max[i]);
+      const lo=Math.round(daily.temperature_2m_min[i]);
+      const rain=daily.precipitation_probability_max[i]||0;
+      const fIcon=wxCodeToEmoji(daily.weathercode[i],true);
+
+      const card=document.createElement('div');
+      card.className='weather-card';
+      card.innerHTML=`
+        <div class="wx-day">${dayLabel}</div>
+        <div class="wx-icon">${fIcon}</div>
+        <div class="wx-temp">${hi}° / ${lo}°</div>
+        <div class="wx-rain">${rain}%</div>
+      `;
+      strip.appendChild(card);
+    }
+
+  }catch(e){
+    console.warn('Weather fetch failed',e);
+    todayMain.innerHTML='⛅ --°';
+    todaySub.innerHTML='WEATHER UNAVAILABLE';
+    todayAlert.className='weather-alert';
+    todayAlert.innerHTML='';
+  }
+}
+
+
+function formatDateTime(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  return d.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
+}
+
+
+function renderTasksPage(){
+  const board=document.getElementById('board');
+
+  const jobsWithTasks=[];
+
+  allJobs.forEach(job=>{
+    const pending=(job.tasks||[]).filter(t=>!t.done);
+
+    if(pending.length){
+      jobsWithTasks.push({
+        job,
+        tasks:pending
+      });
+    }
+  });
+
+  if(jobsWithTasks.length===0){
+    board.innerHTML='<p class="empty-msg">🟢 No pending tasks.</p>';
+    return;
+  }
+
+  let html='';
+
+  const now=new Date();
+
+  jobsWithTasks.forEach(entry=>{
+    html+=`
+      <div class="tasks-page-group">
+        <div class="tasks-page-job">${entry.job.name}</div>
+    `;
+
+    entry.tasks.forEach(task=>{
+
+      let cls='task-normal';
+      let label='OPEN';
+
+      if(task.dueDate){
+        const due=new Date(task.dueDate);
+
+        const diff=Math.ceil((due-now)/(1000*60*60*24));
+
+        if(diff < 0){
+          cls='task-overdue';
+          label='OVERDUE';
+        }else if(diff===0){
+          cls='task-today';
+          label='TODAY';
+        }else{
+          label=task.dueDate;
+        }
+      }
+
+      html+=`
+        <div class="tasks-page-item">
+          <div class="tasks-page-left">
+            <input type="checkbox" onchange="toggleTask('${entry.job.id}',${entry.job.tasks.findIndex(t=>t.text===task.text)})">
+            <div class="tasks-page-text">${task.text}</div>
+          </div>
+
+          <div class="tasks-page-due ${cls}">
+            ${label}
+          </div>
+        </div>
+      `;
+    });
+
+    html+='</div>';
+  });
+
+  board.innerHTML=html;
+}
+
+function render(){
+
+  try{
+  const board=document.getElementById('board');
+  const statusTabs=document.getElementById('status-tabs');
+  const searchWrap=document.getElementById('search-wrap');
+  const fab=document.getElementById('fab');
+
+  if(curStatus==='tasks'){
+    renderTasksPage();
+    return;
+  }
+
+  if(curDiv==='emergencies'){
+    statusTabs.style.display='none';
+    searchWrap.style.display='none';
+    fab.classList.add('hide');
+    renderEmergencies();
+    return;
+  }
+
+  statusTabs.style.display='flex';
+  searchWrap.style.display='block';
+  fab.classList.remove('hide');
+
+  const search=document.getElementById('search')?.value.toLowerCase()||'';
+  const jobs=allJobs
+    .filter(j=>j.division===curDiv)
+    .filter(j=>{
+      if(curStatus==='active') return !j.completed&&j.status!=='pipeline';
+      if(curStatus==='completed') return j.completed;
+      if(curStatus==='pipeline') return j.status==='pipeline'&&!j.completed;
+      return true;
+    })
+    .filter(j=>JSON.stringify(j).toLowerCase().includes(search))
+    .sort((a,b)=>{
+      // Pinned jobs always float to top
+      if(a.pinned && !b.pinned) return -1;
+      if(!a.pinned && b.pinned) return 1;
+
+      const ad=a.startDate?new Date(a.startDate).getTime():9999999999999;
+      const bd=b.startDate?new Date(b.startDate).getTime():9999999999999;
+
+      if(a.tbd && !b.tbd) return 1;
+      if(!a.tbd && b.tbd) return -1;
+
+      if(ad!==bd) return ad-bd;
+
+      return a.sortOrder-b.sortOrder;
+    });
+
+  let html='';
+  if(curStatus==='active'){
+    STATUS_ORDER.forEach(s=>{
+      const group=jobs.filter(j=>j.status===s);
+      if(!group.length) return;
+      const collapsed=collapsedGroups[s];
+
+      html+=`
+      <div class="group-header ${collapsed?'closed':''}" onclick="toggleGroup('${s}')">
+        <span class="group-chevron">▼</span>
+        <div class="group-label">${STATUS_LABELS[s]}</div>
+      </div>
+
+      <div class="group-content ${collapsed?'closed':''}">
+      `;
+
+      group.forEach(j=>html+=cardHTML(j));
+
+      html+='</div><div class="divider"></div>';
+    });
+    if(!jobs.length) html='<p class="empty-msg">No active jobs. Tap + to add one.</p>';
+  } else if(curStatus==='completed'){
+    if(!jobs.length) html='<p class="empty-msg">No completed jobs yet.</p>';
+    else{ html+=`<div class="group-label">✅ Completed (${jobs.length})</div>`; jobs.forEach(j=>html+=cardHTML(j)); }
+  } else {
+    if(!jobs.length) html='<p class="empty-msg">No pipeline jobs.</p>';
+    else{ html+='<div class="group-label">Incoming Work</div>'; jobs.forEach(j=>html+=cardHTML(j)); }
+  }
+  board.innerHTML=html;
+  applyMobileFixes();
+  }catch(err){
+    console.error('Render failure',err);
+  }
+}
+
+function renderEmergencies(){
+  const board=document.getElementById('board');
+  if(!allEmergencies.length){
+    board.innerHTML='<p class="empty-msg" style="padding:1rem;">No emergencies logged. 🟢 All clear.</p>';
+    return;
+  }
+  let html=`<div class="group-label" style="padding:4px 0 8px;">🚨 All Incidents — Newest First (${allEmergencies.length})</div>`;
+  allEmergencies.forEach(e=>{
+    const job=allJobs.find(j=>j.id===e.job_id);
+    const divLabel=e.division==='sgd'?'SGD':'SGC';
+    html+=`<div class="emg-card">
+      <div class="emg-card-header">
+        <span class="emg-job-name">${e.job_name||'Unknown Job'}</span>
+        <span class="emg-div-badge">${divLabel}</span>
+      </div>
+      <div class="emg-card-type">${e.type}</div>
+      <div class="emg-card-desc">${e.description||'—'}</div>
+      <div class="emg-card-meta">
+        ${e.logged_by?'Logged by '+e.logged_by+' · ':''}${formatDateTime(e.created_at)}
+      </div>
+    </div>`;
+  });
+  board.innerHTML=html;
+  applyMobileFixes();
+}
+
+function cardHTML(j){
+  const doneTasks=j.tasks.filter(t=>t.done).length, total=j.tasks.length;
+  const pct=total?Math.round(doneTasks/total*100):0;
+  const tagsHTML=j.tags.map((t,idx)=>`
+    <span class="tag ${t.color}" onclick="event.stopPropagation();editTag('${j.id}',${idx})" style="cursor:pointer;">
+      ${t.text}
+    </span>`).join('');
+  const emgs=jobEmergencies(j.id);
+  const hasEmg=emgs.length>0;
+
+  const tasksHTML=`
+    <div class="tasks-toggle ${openTasks[j.id]?'open':''}" onclick="toggleTasks('${j.id}',this)">
+      <span class="tasks-arrow">▶</span>
+      <span class="tasks-lbl" id="tl-${j.id}">Tasks (${doneTasks}/${total})</span>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" id="pb-${j.id}" style="width:${pct}%"></div></div>
+    <div class="tasklist ${openTasks[j.id]?'open':''}" id="tlist-${j.id}">
+      ${j.tasks.map((t,idx)=>`
+        <div class="task ${t.done?'done':''}">
+          <div class="task-top">
+
+            <div class="task-left">
+              <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${j.id}',${idx})">
+
+              <div style="flex:1;">
+
+                ${
+                  editingTasks[`${j.id}-${idx}`]
+                  ? `
+                    <div class="task-edit-row">
+                      <input type="text" id="edit-task-text-${j.id}-${idx}" value="${t.text}">
+                      <input type="date" id="edit-task-date-${j.id}-${idx}" value="${t.dueDate || ''}">
+                      <button class="task-save-btn" onclick="saveTaskEdit('${j.id}',${idx})">
+                        Save
+                      </button>
+                    </div>
+                  `
+                  : `
+                    <div class="task-text">${t.text}</div>
+                    ${t.dueDate?`<div class="task-due">Due ${t.dueDate}</div>`:''}
+                  `
+                }
+
+              </div>
+            </div>
+
+            <div class="task-actions">
+              <button class="task-action-btn" onclick="editTask('${j.id}',${idx})">✎</button>
+              <button class="task-action-btn" onclick="deleteTask('${j.id}',${idx})">🗑</button>
+            </div>
+
+          </div>
+        </div>`).join('')}
+      ${!j.completed?`<div class="add-row">
+        <input type="text" id="ti-${j.id}" placeholder="Add task…" onkeydown="if(event.key==='Enter')addTask('${j.id}')">
+        <input type="date" id="td-${j.id}">
+        <button class="add-task-btn" onclick="addTask('${j.id}')">+ Add</button>
+      </div>`:''}
+    </div>`;
+
+  const emgHTML=`
+    <div class="emg-toggle ${openEmg[j.id]?'open':''}" onclick="toggleEmg('${j.id}',this)">
+      <span class="emg-arrow">▶</span>
+      <span class="emg-lbl">🚨 Incidents (${emgs.length})</span>
+    </div>
+    <div class="emg-list ${openEmg[j.id]?'open':''}" id="emglist-${j.id}">
+      ${emgs.map(e=>`
+        <div class="emg-entry">
+          <div class="emg-entry-header">
+            <span class="emg-type">${e.type}</span>
+            <span class="emg-time">${formatDateTime(e.created_at)}</span>
+          </div>
+          <div class="emg-desc">${e.description||'—'}</div>
+          ${e.logged_by?`<div class="emg-by">Logged by ${e.logged_by}</div>`:''}
+        </div>`).join('')}
+    </div>`;
+
+  const actionsHTML=!j.completed
+    ?`<div class="card-btns">
+        <button class="btn complete" onclick="markComplete('${j.id}')">✓ Complete</button>
+        <button class="btn" onclick="editJob('${j.id}')">✎ Edit</button>
+        <button class="btn emergency" onclick="openEmgModal('${j.id}')">🚨 Emergency</button>
+        <button class="btn danger" onclick="deleteJob('${j.id}')">🗑</button>
+      </div>`
+    :`<div class="card-btns">
+        <button class="btn reopen" onclick="reopenJob('${j.id}')">↺ Reopen</button>
+        <button class="btn emergency" onclick="openEmgModal('${j.id}')">🚨 Emergency</button>
+        <button class="btn danger" onclick="deleteJob('${j.id}')">🗑</button>
+      </div>`;
+
+  return `<div class="card status-${j.status} ${j.completed?'completed-card':''} ${hasEmg?'has-emergency':''}" id="card-${j.id}"
+    draggable="true"
+    ondragstart="startDrag('${j.id}')"
+    ondragover="allowDrop(event,'${j.id}')"
+    ondragleave="clearDrop('${j.id}')"
+    ondrop="dropCard('${j.id}')">
+    <div class="card-name ${j.completed?'done':''}">${j.name}</div>
+    ${j.scope?`<div class="card-scope">${j.scope}</div>`:''}
+
+    <div class="op-row">
+      <div class="op-cell">
+        <span class="op-label">MP</span>
+        <span class="op-value manpower">${j.manpower||'--'}</span>
+      </div>
+      <div class="op-cell">
+        <span class="op-label">START</span>
+        <span class="op-value start-date">${j.tbd?'TBD':(j.startDate||'--')}</span>
+      </div>
+      <div class="op-cell">
+        <span class="op-label">HRS</span>
+        <span class="op-value hours">${j.hours||'--'}</span>
+      </div>
+      <div class="op-cell">
+        <span class="op-label">DAYS</span>
+        <span class="op-value days">${j.days||'--'}</span>
+      </div>
+      <div class="op-cell">
+        <span class="op-label">SUPER</span>
+        <span class="op-value super">${j.superintendent||'--'}</span>
+      </div>
+
+      <div class="op-cell">
+        <span class="op-label">CREW</span>
+        <span class="op-value crew">${j.crewSize||'--'}</span>
+      </div>
+    </div>
+
+    ${getStartWarning(j)?`<div class="status-pill start-warning" style="margin-top:8px;width:fit-content;">
+      ${getStartWarning(j)}
+    </div>`:''}
+
+    ${j.notes?`<div class="card-notes">${j.notes}</div>`:''}
+
+
+    <div class="workdays-inline">
+      ${[
+        ['mon','M'],
+        ['tue','T'],
+        ['wed','W'],
+        ['thu','T'],
+        ['fri','F'],
+        ['sat','S'],
+        ['sun','S']
+      ].map(([key,label])=>`
+        <div
+          class="wd ${(j.workDays&&j.workDays[key])?'on':''}"
+          onclick="toggleWorkday('${j.id}','${key}')"
+        >
+          ${label}
+        </div>
+      `).join('')}
+    </div>
+
+
+    ${tagsHTML?`<div class="tags">${tagsHTML}</div>`:''}
+    ${tasksHTML}
+    ${emgHTML}
+    ${actionsHTML}
+  </div>`;
+}
+
+function toggleTasks(id,btn){
+  openTasks[id]=!openTasks[id];
+  btn.classList.toggle('open');
+  document.getElementById('tlist-'+id)?.classList.toggle('open');
+}
+
+function toggleEmg(id,btn){
+  openEmg[id]=!openEmg[id];
+  btn.classList.toggle('open');
+  document.getElementById('emglist-'+id)?.classList.toggle('open');
+}
+
+
+function editTask(jid,idx){
+  editingTasks[`${jid}-${idx}`]=true;
+  render();
+}
+
+async function saveTaskEdit(jid,idx){
+  if(!requireEditor()) return;
+
+  const job=allJobs.find(j=>j.id===jid);
+
+  if(!job) return;
+
+  const text=document.getElementById(`edit-task-text-${jid}-${idx}`)?.value?.trim();
+  const due=document.getElementById(`edit-task-date-${jid}-${idx}`)?.value || '';
+
+  if(!text) return;
+
+  job.tasks[idx].text=text;
+  job.tasks[idx].dueDate=due;
+
+  delete editingTasks[`${jid}-${idx}`];
+
+  await upsert(job);
+
+  // prevent refresh rollback
+  const jobIndex=allJobs.findIndex(x=>x.id===job.id);
+  if(jobIndex>-1){
+    allJobs[jobIndex]=JSON.parse(JSON.stringify(job));
+  }
+
+  updateDashboard();
+  render();
+}
+
+async function deleteTask(jid,idx){
+  if(!requireEditor()) return;
+
+  const job=allJobs.find(j=>j.id===jid);
+
+  if(!job) return;
+
+  if(!confirm('Delete this task?')) return;
+
+  job.tasks.splice(idx,1);
+
+  await upsert(job);
+
+  updateDashboard();
+  render();
+}
+
+async function toggleTask(jid,idx){
+  if(!requireEditor()) return;
+  const job=allJobs.find(j=>j.id===jid); if(!job) return;
+  job.tasks[idx].done=!job.tasks[idx].done;
+  const done=job.tasks.filter(t=>t.done).length, total=job.tasks.length;
+  document.getElementById('tl-'+jid).textContent=`Tasks (${done}/${total})`;
+  document.getElementById('pb-'+jid).style.width=(total?Math.round(done/total*100):0)+'%';
+  const item=document.getElementById('tlist-'+jid)?.querySelectorAll('.task')[idx];
+  if(item) item.classList.toggle('done',job.tasks[idx].done);
+  await upsert(job);
+  refreshAll();
+}
+
+async function addTask(jid){
+  if(!requireEditor()) return;
+  const inp=document.getElementById('ti-'+jid);
+  const due=document.getElementById('td-'+jid);
+  const text=inp.value.trim(); if(!text) return;
+  const job=allJobs.find(j=>j.id===jid); if(!job) return;
+  const wasOpen=openTasks[jid];
+  job.tasks.push({text,done:false,dueDate:due?.value||''});
+  inp.value=''; if(due) due.value='';
+  await upsert(job);
+  openTasks[jid]=wasOpen;
+  render();
+  if(wasOpen) document.getElementById('ti-'+jid)?.focus();
+}
+
+
+
+async function toggleWorkday(jid,day){
+  if(!requireEditor()) return;
+
+  const job=allJobs.find(j=>j.id===jid);
+
+  if(!job) return;
+
+  // guarantee object exists
+  if(typeof job.workDays !== 'object' || job.workDays===null){
+    job.workDays={...DEFAULT_WORKDAYS};
+  }
+
+  // create isolated copy
+  const updated={
+    mon:!!job.workDays.mon,
+    tue:!!job.workDays.tue,
+    wed:!!job.workDays.wed,
+    thu:!!job.workDays.thu,
+    fri:!!job.workDays.fri,
+    sat:!!job.workDays.sat,
+    sun:!!job.workDays.sun
+  };
+
+  updated[day]=!updated[day];
+
+  job.workDays=updated;
+
+  saveLocalBackup();
+
+  renderOpsRibbon();
+  render();
+
+  try{
+    await upsert(job);
+  }catch(err){
+    console.error(err);
+  }
+}
+
+
+
+async function markComplete(jid){
+  if(!requireEditor()) return;
+  const job=allJobs.find(j=>j.id===jid); if(!job) return;
+  job.completed=true; await upsert(job); refreshAll();
+}
+async function reopenJob(jid){
+  if(!requireEditor()) return;
+  const job=allJobs.find(j=>j.id===jid); if(!job) return;
+  job.completed=false; await upsert(job); refreshAll();
+}
+async function deleteJob(jid){
+  if(!requireEditor()) return;
+  if(!confirm('Delete this job?')) return;
+  allJobs=allJobs.filter(j=>j.id!==jid);
+  await removeJob(jid); refreshAll();
+}
+
+function startDrag(id){ dragId=id; }
+function allowDrop(e,id){ e.preventDefault(); document.getElementById('card-'+id)?.classList.add('drag-over'); }
+function clearDrop(id){ document.getElementById('card-'+id)?.classList.remove('drag-over'); }
+async function dropCard(targetId){
+  clearDrop(targetId);
+  if(!dragId||dragId===targetId) return;
+  const from=allJobs.find(j=>j.id===dragId);
+  const to=allJobs.find(j=>j.id===targetId);
+  if(!from||!to) return;
+  const temp=from.sortOrder; from.sortOrder=to.sortOrder; to.sortOrder=temp;
+  await upsert(from); await upsert(to); render();
+}
+
+function openAddJob(){
+  if(!requireEditor()) return;
+  editingId=null; editingTags=[];
+  document.getElementById('modal-title').textContent='Add Job — '+(curDiv==='sgd'?'SGD':'SGC');
+  document.getElementById('f-name').value='';
+  document.getElementById('f-scope').value='';
+  document.getElementById('f-status').value='urgent';
+  document.getElementById('f-notes').value='';
+  document.getElementById('f-start-date').value='';
+  document.getElementById('f-tbd').checked=false;
+  document.getElementById('f-manpower').value='';
+  document.getElementById('f-hours').value='';
+  document.getElementById('f-days').value='';
+  document.getElementById('f-super').value='';
+  document.getElementById('f-pm').value='';
+  document.getElementById('f-crew-size').value='';
+  document.getElementById('f-pinned').checked=false;
+  setSelectedWorkdays({...DEFAULT_WORKDAYS});
+  renderTagList();
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),50);
+}
+
+function editJob(jid){
+  if(!requireEditor()) return;
+  const job=allJobs.find(j=>j.id===jid); if(!job) return;
+  editingId=jid; editingTags=[...job.tags];
+  document.getElementById('modal-title').textContent='Edit Job';
+  document.getElementById('f-name').value=job.name;
+  document.getElementById('f-scope').value=job.scope||'';
+  document.getElementById('f-status').value=job.status;
+  document.getElementById('f-notes').value=job.notes||'';
+  document.getElementById('f-start-date').value=job.startDate||'';
+  document.getElementById('f-tbd').checked=job.tbd||false;
+  document.getElementById('f-manpower').value=job.manpower||'';
+  document.getElementById('f-hours').value=job.hours||'';
+  document.getElementById('f-days').value=job.days||'';
+  document.getElementById('f-super').value=job.superintendent||'';
+  document.getElementById('f-pm').value=job.pm||'';
+  document.getElementById('f-crew-size').value=job.crewSize||'';
+  document.getElementById('f-pinned').checked=job.pinned||false;
+
+  setSelectedWorkdays(job.workDays || DEFAULT_WORKDAYS);
+  renderTagList();
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),50);
+}
+
+function renderTagList(){
+  document.getElementById('tag-list').innerHTML=editingTags.map((t,i)=>`
+    <span class="tag-chip">
+      <span class="tag ${t.color}">${t.text}</span>
+      <span class="x" onclick="removeTag(${i})">✕</span>
+    </span>`).join('');
+}
+
+function addTagToEdit(){
+  const text=document.getElementById('tag-text').value.trim(); if(!text) return;
+  const color=document.getElementById('tag-color').value;
+  editingTags.push({text,color});
+  document.getElementById('tag-text').value='';
+  renderTagList();
+}
+
+function removeTag(i){ editingTags.splice(i,1); renderTagList(); }
+
+function editTag(jid,index){
+  if(!requireEditor()) return;
+  const job=allJobs.find(j=>j.id===jid);
+  if(!job) return;
+
+  const current=job.tags[index];
+  const newText=prompt('Edit tag text:',current.text);
+  if(newText===null) return;
+
+  current.text=newText;
+
+  const newColor=prompt('Tag color (red, amber, green, blue):',current.color);
+  if(newColor) current.color=newColor;
+
+  upsert(job);
+  render();
+}
+
+
+async function saveJob(){
+  if(!requireEditor()) return;
+  const name=document.getElementById('f-name').value.trim(); if(!name) return;
+  const scope=document.getElementById('f-scope').value.trim();
+  const status=document.getElementById('f-status').value;
+  const notes=document.getElementById('f-notes').value.trim();
+  const rawStartDate=document.getElementById('f-start-date').value;
+  const tbd=document.getElementById('f-tbd').checked;
+  const startDate=tbd ? '' : rawStartDate;
+  const manpower=document.getElementById('f-manpower').value.trim();
+  const hours=document.getElementById('f-hours').value.trim();
+  const days=document.getElementById('f-days').value.trim();
+  const superintendent=document.getElementById('f-super').value.trim();
+  const pm=document.getElementById('f-pm').value.trim();
+  const crewSize=document.getElementById('f-crew-size').value.trim();
+  const pinned=document.getElementById('f-pinned').checked;
+  const workDays=getSelectedWorkdays();
+  if(editingId){
+    const job=allJobs.find(j=>j.id===editingId);
+    if(job){
+      job.name=name;
+      job.scope=scope;
+      job.status=status;
+      job.notes=notes;
+      job.tags=editingTags;
+      job.startDate=startDate;
+      job.tbd=tbd;
+      job.manpower=manpower;
+      job.hours=hours;
+      job.days=days;
+      job.superintendent=superintendent;
+      job.pm=pm;
+      job.crewSize=crewSize;
+      job.pinned=pinned;
+      job.workDays={
+        mon:!!workDays.mon,
+        tue:!!workDays.tue,
+        wed:!!workDays.wed,
+        thu:!!workDays.thu,
+        fri:!!workDays.fri,
+        sat:!!workDays.sat,
+        sun:!!workDays.sun
+      };
+      ensureAbatementTasks(job);
+    }
+    await upsert(job);
+  } else {
+    const maxOrder=allJobs.filter(j=>j.division===curDiv).reduce((m,j)=>Math.max(m,j.sortOrder||0),0);
+    const job={
+      id:'j'+Date.now(),
+      name,
+      scope,
+      status,
+      notes,
+      tags:editingTags,
+      tasks:[],
+      completed:false,
+      division:curDiv,
+      sortOrder:maxOrder+1,
+      startDate,
+      tbd,
+      manpower,
+      hours,
+      days,
+      superintendent,
+      pm,
+      crewSize,
+      pinned,
+      workDays:{
+        mon:!!workDays.mon,
+        tue:!!workDays.tue,
+        wed:!!workDays.wed,
+        thu:!!workDays.thu,
+        fri:!!workDays.fri,
+        sat:!!workDays.sat,
+        sun:!!workDays.sun
+      }
+    };
+    ensureAbatementTasks(job);
+    allJobs.push(job);
+    await insertJob(job);
+  }
+  closeModal(); refreshAll();
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('open');
+  editingId=null; editingTags=[];
+}
+
+function openEmgModal(jid){
+  if(!requireEditor()) return;
+  emgJobId=jid;
+  const job=allJobs.find(j=>j.id===jid);
+  document.getElementById('emg-job-label').textContent='Job: '+(job?job.name:'');
+  document.getElementById('emg-type').value='Injury';
+  document.getElementById('emg-desc').value='';
+  document.getElementById('emg-by').value='';
+  document.getElementById('emg-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('emg-desc').focus(),50);
+}
+
+async function saveEmergency(){
+  if(!requireEditor()) return;
+  const type=document.getElementById('emg-type').value;
+  const desc=document.getElementById('emg-desc').value.trim();
+  const by=document.getElementById('emg-by').value.trim();
+  if(!desc){ alert('Please add a description.'); return; }
+  const job=allJobs.find(j=>j.id===emgJobId);
+  const emg={
+    id:'e'+Date.now(),
+    job_id:emgJobId,
+    job_name:job?job.name:'',
+    division:job?job.division:'sgd',
+    type,
+    description:desc,
+    logged_by:by,
+    created_at:new Date().toISOString()
+  };
+  allEmergencies.unshift(emg);
+  await insertEmg(emg);
+  closeEmgModal(); refreshAll();
+}
+
+function closeEmgModal(){
+  document.getElementById('emg-modal').classList.remove('open');
+  emgJobId=null;
+}
+
+function switchDiv(div,el){
+  curDiv=div; curStatus='active';
+  document.querySelectorAll('.div-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.status-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.status-tab')?.classList.add('active');
+  if(document.getElementById('search')) document.getElementById('search').value='';
+  render();
+}
+
+function switchStatus(s,el){
+  curStatus=s;
+  document.querySelectorAll('.status-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+
+let autoScrollEnabled=false;
+
+function startAutoScrollLoop(){
+
+  clearInterval(window.autoScrollInterval);
+
+  window.autoScrollInterval=setInterval(()=>{
+
+    window.scrollBy(0,1);
+
+    const nearBottom=
+      window.innerHeight + window.scrollY >=
+      document.body.offsetHeight - 4;
+
+    if(nearBottom){
+
+      clearInterval(window.autoScrollInterval);
+
+      setTimeout(()=>{
+
+        window.scrollTo(0,0);
+
+        if(autoScrollEnabled){
+          startAutoScrollLoop();
+        }
+
+      },2500);
+    }
+
+  },45);
+}
+
+function toggleAutoScroll(){
+
+  autoScrollEnabled=!autoScrollEnabled;
+
+  if(autoScrollEnabled){
+    startAutoScrollLoop();
+  } else {
+    clearInterval(window.autoScrollInterval);
+  }
+}
+
+
+function isTouchDevice(){
+  return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+}
+
+window.addEventListener('load',()=>{
+  if(isTouchDevice()){
+    document.querySelectorAll('[draggable="true"]').forEach(el=>{
+      el.setAttribute('draggable','false');
+    });
+  }
+});
+
+
+function applyMobileFixes(){
+  if(isTouchDevice()){
+    document.querySelectorAll('.card').forEach(card=>{
+      card.setAttribute('draggable','false');
+      card.style.touchAction='manipulation';
+    });
+
+    document.querySelectorAll('.btn').forEach(btn=>{
+      btn.addEventListener('touchstart',e=>{
+        e.stopPropagation();
+      },{passive:true});
+    });
+  }
+}
+
+function exportPDF(){
+  document.querySelectorAll('.tasklist').forEach(t=>t.classList.add('open'));
+  document.querySelectorAll('.emg-list').forEach(t=>t.classList.add('open'));
+  window.print();
+  setTimeout(()=>{
+    document.querySelectorAll('.tasklist').forEach(t=>t.classList.remove('open'));
+    document.querySelectorAll('.emg-list').forEach(t=>t.classList.remove('open'));
+    render();
+  },1000);
+}
+
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('emg-modal').addEventListener('click',function(e){if(e.target===this)closeEmgModal();});
+
+
+document.addEventListener('click',function(e){
+  const panel=document.getElementById('overduePanel');
+  const btn=document.getElementById('pillOverdue');
+
+  if(!panel || !btn) return;
+
+  if(!panel.contains(e.target) && !btn.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+
+
+document.addEventListener('click',function(e){
+  const inside=e.target.closest('.command-dropdown');
+
+  if(!inside){
+    closeAllPanels();
+  }
+});
+
+
+
+
+
+
+
+let ribbonDivisionFilter='mixed';
+
+function setRibbonFilter(mode,el){
+  ribbonDivisionFilter=mode;
+  document.querySelectorAll('.division-filter-btn').forEach(btn=>btn.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderOpsRibbon();
+}
+
+
+function renderOpsRibbon(){
+
+  const grid=document.getElementById('opsGrid');
+
+  if(!grid) return;
+
+  const days=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+  const now=new Date();
+
+  let html='';
+
+  for(let i=0;i<7;i++){
+
+    const d=new Date();
+    d.setHours(0,0,0,0);
+    d.setDate(now.getDate()+i);
+
+    const label=days[d.getDay()]+' '+d.getDate();
+
+    const jobs=[];
+
+    allJobs.forEach(j=>{
+
+      if(typeof ribbonDivisionFilter !== 'undefined' && ribbonDivisionFilter!=='mixed'){
+        if((j.division||'').toLowerCase()!==ribbonDivisionFilter){
+          return;
+        }
+      }
+
+      // Do not show completed, TBD, unscheduled, on hold, or pipeline jobs in the weekly ribbon.
+      if(j.completed || j.tbd || !j.startDate || j.status==='hold' || j.status==='pipeline') return;
+
+      const start=parseLocalDate(j.startDate);
+
+      if(!start) return;
+
+      start.setHours(0,0,0,0);
+
+      let duration=parseInt(j.days,10);
+
+      // Blank days = 1-day job. Explicit 0/invalid = do not show in ribbon.
+      if(j.days==='' || j.days===null || typeof j.days==='undefined'){
+        duration=1;
+      }
+
+      if(isNaN(duration) || duration<=0){
+        return;
+      }
+
+      const normalizedWorkDays={
+        mon: j.workDays ? !!j.workDays.mon : true,
+        tue: j.workDays ? !!j.workDays.tue : true,
+        wed: j.workDays ? !!j.workDays.wed : true,
+        thu: j.workDays ? !!j.workDays.thu : true,
+        fri: j.workDays ? !!j.workDays.fri : true,
+        sat: j.workDays ? !!j.workDays.sat : false,
+        sun: j.workDays ? !!j.workDays.sun : false
+      };
+
+      if(!Object.values(normalizedWorkDays).some(Boolean)){
+        return;
+      }
+
+      const end=new Date(start);
+      end.setDate(start.getDate()+duration-1);
+
+      const dayKeys=['sun','mon','tue','wed','thu','fri','sat'];
+
+      const currentKey=dayKeys[d.getDay()];
+
+      const allowed=normalizedWorkDays[currentKey];
+
+      if(d >= start && d <= end && allowed){
+
+        let color='blue';
+
+        if(j.status==='urgent') color='red';
+        if(j.status==='soon') color='yellow';
+        if(j.status==='ongoing') color='green';
+
+        jobs.push({
+          name:j.name,
+          crew:j.crewSize || j.manpower || '--',
+          scope:j.scope || '',
+          color:color
+        });
+      }
+    });
+
+    jobs.sort((a,b)=>a.name.localeCompare(b.name));
+
+    html+=`
+      <div class="ops-day">
+
+        <div class="ops-day-head">
+          ${label} • ${jobs.length} JOB${jobs.length!==1?'S':''}
+        </div>
+
+        <div class="ops-day-body">
+
+          ${
+            jobs.length
+            ? jobs.map(j=>`
+              <div class="ops-job-row">
+
+                <div class="ops-indicator ${j.color}"></div>
+
+                <div class="ops-job-info">
+                  <div class="ops-job">${j.name}</div>
+                  <div class="ops-meta">
+                    ${j.scope || 'GENERAL OPS'} • ${j.crew} CREW
+                  </div>
+                </div>
+
+              </div>
+            `).join('')
+            : `
+              <div class="ops-none">
+                No scheduled operations
+              </div>
+            `
+          }
+
+        </div>
+
+      </div>
+    `;
+  }
+
+  grid.innerHTML=html;
+}
+
+
+
+
+
+let isSaving=false;
+
+setInterval(()=>{
+  if(currentSession && !isSaving){
+    loadAll();
+  }
+},120000);
+</script>
+</body>
+</html>
