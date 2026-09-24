@@ -1650,12 +1650,27 @@ body.light-mode .dt-chip.red .dt-val{color:#7a0000!important;}
 .emg-entry.resolved{background:rgba(42,138,94,.08);border-color:rgba(42,138,94,.25);}
 .emg-entry.resolved .emg-type{color:#6ee0a0;}
 .emg-resolved-badge{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:rgba(42,138,94,.2);color:#6ee0a0;}
+/* ===== IMPORT ===== */
+.imp-box{max-width:620px;}
+.imp-summary{font-size:13px;color:var(--text);margin-bottom:10px;}
+.imp-sec{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text);margin:14px 0 6px;text-transform:uppercase;}
+.imp-sec span{font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;}
+.imp-row{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border:1px solid var(--line);border-radius:5px;margin-bottom:5px;cursor:pointer;background:var(--mid);}
+.imp-row input{margin-top:3px;accent-color:var(--green);flex-shrink:0;}
+.imp-name{font-weight:700;font-size:13px;color:var(--text);}
+.imp-meta,.imp-chg{font-size:12px;color:var(--muted);margin-top:2px;}
+.imp-chg s{opacity:.7;}
+.imp-warn{font-size:12px;color:#f5c400;margin-bottom:3px;}
+.imp-err{color:#ff8b8b;font-size:13px;}
+#imp-body{max-height:60vh;overflow-y:auto;}
+body.read-only #importBtn{display:none!important;}
+body.light-mode .imp-warn{color:#7a5200!important;}
 </style>
 </head>
 <body>
 
 <header>
-  <span class="hdr-title">Salco Job Board v6.7</span>
+  <span class="hdr-title">Salco Job Board v6.8</span>
   <div class="hdr-right">
     <span class="sync-dot" id="sync-dot" title="Sync status"></span>
 
@@ -1669,6 +1684,8 @@ body.light-mode .dt-chip.red .dt-val{color:#7a0000!important;}
 
     <span class="role-badge" id="roleBadge" style="display:none;">READ ONLY</span>
     <button class="hdr-btn" id="logoutBtn" onclick="logout()" style="display:none;">Logout</button>
+    <button class="hdr-btn" id="importBtn" onclick="openImport()">⬆ Import</button>
+    <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="handleImportFile(this)">
     <button class="hdr-btn" onclick="toggleAutoScroll()">⇅ Scroll</button>
     <button class="hdr-btn" onclick="exportPDF()">⬇ PDF</button>
   </div>
@@ -1909,6 +1926,18 @@ body.light-mode .dt-chip.red .dt-val{color:#7a0000!important;}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-save" onclick="saveJob()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal" id="imp-modal">
+  <div class="modal-box imp-box">
+    <div class="modal-title">⬆ Import Jobs from Excel</div>
+    <div id="imp-body"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeImport()">Cancel</button>
+      <button class="btn-save" id="imp-apply" onclick="applyImport()">Apply</button>
     </div>
   </div>
 </div>
@@ -2634,16 +2663,16 @@ async function upsert(job){
   if(!requireEditor()) return;
   isSaving=true;
   setSyncStatus('syncing');
-  try{ await api('jobs?id=eq.'+job.id,'PATCH',toDbRow(job)); setSyncStatus('ok'); }
-  catch(e){ setSyncStatus('error'); console.error('upsert error',e); }
+  try{ await api('jobs?id=eq.'+job.id,'PATCH',toDbRow(job)); setSyncStatus('ok'); return true; }
+  catch(e){ setSyncStatus('error'); console.error('upsert error',e); return false; }
   finally{ isSaving=false; }
 }
 async function insertJob(job){
   if(!requireEditor()) return;
   isSaving=true;
   setSyncStatus('syncing');
-  try{ await api('jobs','POST',toDbRow(job)); setSyncStatus('ok'); }
-  catch(e){ setSyncStatus('error'); console.error('insert error',e); }
+  try{ await api('jobs','POST',toDbRow(job)); setSyncStatus('ok'); return true; }
+  catch(e){ setSyncStatus('error'); console.error('insert error',e); return false; }
   finally{ isSaving=false; }
 }
 async function removeJob(id){
@@ -3897,6 +3926,7 @@ function exportPDF(){
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('emg-modal').addEventListener('click',function(e){if(e.target===this)closeEmgModal();});
+document.getElementById('imp-modal').addEventListener('click',function(e){if(e.target===this)closeImport();});
 
 
 document.addEventListener('click',function(e){
@@ -4060,6 +4090,425 @@ function renderOpsRibbon(){
 
 
 
+
+
+/* ===================================================================
+   IMPORT EXCEL
+   Reads the Salco Onside Jobs sheet (.xlsx or .csv) with no outside
+   library: an .xlsx is a zip of XML files, unzipped by the browser.
+   =================================================================== */
+
+async function inflateRaw(bytes){
+  const ds=new DecompressionStream('deflate-raw');
+  const out=new Blob([bytes]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(out).arrayBuffer());
+}
+
+async function unzip(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf), files={};
+  let eocd=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-66000);i--){
+    if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}
+  }
+  if(eocd<0) throw new Error('Not a valid .xlsx file.');
+  const count=dv.getUint16(eocd+10,true);
+  let p=dv.getUint32(eocd+16,true);
+  const dec=new TextDecoder();
+  for(let n=0;n<count;n++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true);
+    const nlen=dv.getUint16(p+28,true), elen=dv.getUint16(p+30,true), clen=dv.getUint16(p+32,true);
+    const loc=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nlen));
+    const start=loc+30+dv.getUint16(loc+26,true)+dv.getUint16(loc+28,true);
+    files[name]={method,data:u8.subarray(start,start+csize)};
+    p+=46+nlen+elen+clen;
+  }
+  return async name=>{
+    const f=files[name]; if(!f) return null;
+    const bytes=f.method===0?f.data:await inflateRaw(f.data);
+    return new TextDecoder().decode(bytes);
+  };
+}
+
+function xmlDoc(txt){ return new DOMParser().parseFromString(txt,'application/xml'); }
+function byTag(node,tag){ return Array.from(node.getElementsByTagNameNS('*',tag)); }
+
+function colIndex(ref){
+  const letters=(ref.match(/^[A-Z]+/)||['A'])[0];
+  let n=0; for(const ch of letters) n=n*26+(ch.charCodeAt(0)-64);
+  return n-1;
+}
+
+function serialToISO(v){
+  const d=new Date(Date.UTC(1899,11,30)+Math.floor(v)*86400000);
+  return d.toISOString().slice(0,10);
+}
+function serialToTime(v){
+  let mins=Math.round((v-Math.floor(v))*1440);
+  const h24=Math.floor(mins/60)%24, m=mins%60, ap=h24<12?'am':'pm', h=(h24%12)||12;
+  return m?`${h}:${String(m).padStart(2,'0')}${ap}`:`${h}${ap}`;
+}
+
+async function readXlsx(file){
+  const get=await unzip(await file.arrayBuffer());
+  const wb=xmlDoc(await get('xl/workbook.xml'));
+  const rels=xmlDoc(await get('xl/_rels/workbook.xml.rels')||'<r/>');
+  const relMap={};
+  byTag(rels,'Relationship').forEach(r=>relMap[r.getAttribute('Id')]=r.getAttribute('Target'));
+
+  const shared=[];
+  const ssTxt=await get('xl/sharedStrings.xml');
+  if(ssTxt) byTag(xmlDoc(ssTxt),'si').forEach(si=>shared.push(byTag(si,'t').map(t=>t.textContent).join('')));
+
+  // Which cell styles are dates / times
+  const dateStyle=[];
+  const stTxt=await get('xl/styles.xml');
+  if(stTxt){
+    const st=xmlDoc(stTxt), custom={};
+    byTag(st,'numFmt').forEach(f=>custom[f.getAttribute('numFmtId')]=f.getAttribute('formatCode')||'');
+    const xfs=byTag(st,'cellXfs')[0];
+    if(xfs) byTag(xfs,'xf').forEach(xf=>{
+      const id=+xf.getAttribute('numFmtId');
+      const code=(custom[id]||'').replace(/"[^"]*"|\[[^\]]*\]/g,'').toLowerCase();
+      const builtin=(id>=14&&id<=22)||(id>=45&&id<=47);
+      const isDate=builtin||/[dy]/.test(code)||(/m/.test(code)&&/[dy]/.test(code));
+      const isTime=(id>=18&&id<=21)||(id>=45&&id<=47)||(/h/.test(code)&&!/[dy]/.test(code));
+      dateStyle.push(isTime?'time':isDate?'date':'');
+    });
+  }
+
+  const sheets=[];
+  for(const sh of byTag(wb,'sheet')){
+    const rid=sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+    let target=relMap[rid]||''; target=target.replace(/^\/?xl\//,'').replace(/^\//,'');
+    const txt=await get('xl/'+target); if(!txt) continue;
+    const rows=[];
+    byTag(xmlDoc(txt),'row').forEach(r=>{
+      const ri=(+r.getAttribute('r')||rows.length+1)-1, row=[];
+      byTag(r,'c').forEach(c=>{
+        const t=c.getAttribute('t'), s=+(c.getAttribute('s')||0);
+        const vEl=byTag(c,'v')[0]; let v=vEl?vEl.textContent:'';
+        if(t==='s') v=shared[+v]||'';
+        else if(t==='inlineStr') v=byTag(c,'t').map(x=>x.textContent).join('');
+        else if(t==='b') v=v==='1'?'TRUE':'FALSE';
+        else if(t!=='str'&&t!=='e'&&v!==''){
+          const num=+v, kind=dateStyle[s];
+          if(kind==='time'&&num<1) v={time:serialToTime(num)};
+          else if(kind==='date'||kind==='time') v={date:serialToISO(num)};
+          else v=num;
+        }
+        row[colIndex(c.getAttribute('r')||'A1')]=v;
+      });
+      rows[ri]=row;
+    });
+    sheets.push({name:sh.getAttribute('name'),rows:Array.from(rows,r=>r||[])});
+  }
+  return sheets;
+}
+
+function readCsv(text){
+  const rows=[]; let row=[], cur='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){ if(ch==='"'&&text[i+1]==='"'){cur+='"';i++;} else if(ch==='"') q=false; else cur+=ch; }
+    else if(ch==='"') q=true;
+    else if(ch===','){row.push(cur);cur='';}
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur+=ch;
+  }
+  if(cur||row.length){row.push(cur);rows.push(row);}
+  return [{name:'CSV',rows}];
+}
+
+/* ---- column headers (new sheet + the coordinator's older layout) ---- */
+const IMPORT_HEADERS={
+  status:['status'],
+  onside:['onsidejob','onsidejobno','onsidejobnumber','jobnumber','jobjumber','jobno','onside'],
+  sgd:['sgd','sgdno','sgdnumber','projectnumber','projectno'],
+  owner:['homeowner','homeownername','customer','insured','client'],
+  address:['address','siteaddress','property'],
+  phone:['phone','phonenumber','cell'],
+  pm:['pm','projectmanager'],
+  nop:['nop'],
+  nopDate:['nopdate'],
+  hazmat:['hazmat','hazmatreport'],
+  xact:['xactimate','xactimatefile','xatimatefile'],
+  visitDate:['sitevisitdate','sitevisit'],
+  visitTime:['sitevisittime'],
+  startDate:['startdate'],
+  startTime:['starttime'],
+  endDate:['enddate','endday'],
+  scope:['scope','scopedetails'],
+  notes:['notes']
+};
+const normKey=s=>String(s??'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+function mapHeaders(row){
+  const map={}; let last=null;
+  (row||[]).forEach((h,i)=>{
+    const k=normKey(h); if(!k) return;
+    let field=Object.keys(IMPORT_HEADERS).find(f=>IMPORT_HEADERS[f].includes(k));
+    if(!field && k==='time'){                  // old sheet: two plain "Time" columns
+      if(last==='visitDate') field='visitTime';
+      else if(last==='startDate'||last==='endDate') field='startTime';
+    }
+    if(field && map[field]===undefined){ map[field]=i; last=field; }
+  });
+  return map;
+}
+
+function pickSheet(sheets){
+  const cands=sheets.map(sh=>{
+    for(let r=0;r<Math.min(12,sh.rows.length);r++){
+      const m=mapHeaders(sh.rows[r]);
+      const score=Object.keys(m).length;
+      if(score>=4 && (m.onside!==undefined||m.sgd!==undefined||m.owner!==undefined)) return {sh,r,m,score};
+    }
+    return null;
+  }).filter(Boolean);
+  if(!cands.length) return null;
+  return cands.find(c=>/^jobs$/i.test(c.sh.name)) || cands.sort((a,b)=>b.score-a.score)[0];
+}
+
+const BLANKS=['','tbd','unknown','pendingdetails','na','n/a','-','--'];
+function cellText(v){
+  if(v==null) return '';
+  if(typeof v==='object') return v.date||v.time||'';
+  const s=String(v).replace(/ /g,' ').replace(/\s+/g,' ').trim();
+  return BLANKS.includes(normKey(s))||BLANKS.includes(s.toLowerCase())?'':s;
+}
+function cellDate(v,warn,label){
+  if(v&&typeof v==='object'&&v.date) return v.date;
+  if(typeof v==='number'&&v>30000&&v<80000) return serialToISO(v);
+  const s=cellText(v); if(!s) return '';
+  if(/\?/.test(s)){ warn(`${label}: "${s}" isn't confirmed, so it was left out. Enter the date once it's firm.`); return ''; }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d=new Date(s.replace(/octuber/i,'October'));
+  if(!isNaN(d)&&/\d{4}/.test(s)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  warn(`${label}: "${s}" isn't a date, so it was left out. Put it in Notes if it matters.`);
+  return '';
+}
+function cellTime(v){
+  if(v&&typeof v==='object') return v.time||'';
+  if(typeof v==='number'&&v<1) return serialToTime(v);
+  return cellText(v).toLowerCase();
+}
+function yesNo(v){ const s=normKey(cellText(v)); return s==='yes'||s==='y'?'Yes':s==='no'||s==='n'?'No':''; }
+function nopValue(v){
+  if(v&&typeof v==='object'&&v.date) return {nop:'Filed',date:v.date};
+  const s=normKey(cellText(v));
+  if(s.includes('need')) return {nop:'Need to Apply',date:''};
+  if(s.includes('request')) return {nop:'Requested',date:''};
+  if(s.includes('filed')||s.includes('complet')) return {nop:'Filed',date:''};
+  return {nop:'',date:''};
+}
+function statusValue(v){
+  const s=normKey(cellText(v));
+  if(s.startsWith('complet')) return 'completed';
+  if(s.includes('hold')) return 'hold';
+  if(s.startsWith('ongoing')) return 'ongoing';
+  if(s.startsWith('upcoming')||s.startsWith('comingsoon')||s.startsWith('confirmed')) return 'soon';
+  if(s.startsWith('pending')||s.startsWith('pipeline')) return 'pipeline';
+  return '';
+}
+
+function rowToRecord(row,m,rowNum,warn){
+  const g=f=>m[f]===undefined?undefined:row[m[f]];
+  const w=msg=>warn(`Row ${rowNum}: ${msg}`);
+  const nop=nopValue(g('nop'));
+  const rec={
+    rowNum,
+    status:statusValue(g('status')),
+    onside:cellText(g('onside')).replace(/\s+/g,''),
+    sgd:cellText(g('sgd')).toUpperCase(),
+    owner:cellText(g('owner')),
+    address:cellText(g('address')),
+    phone:cellText(g('phone')),
+    pm:cellText(g('pm')),
+    nop:nop.nop,
+    nopDate:cellDate(g('nopDate'),w,'NOP Date')||nop.date,
+    hazmat:yesNo(g('hazmat')),
+    xact:yesNo(g('xact')),
+    visitDate:cellDate(g('visitDate'),w,'Site Visit Date'),
+    visitTime:cellTime(g('visitTime')),
+    startDate:cellDate(g('startDate'),w,'Start Date'),
+    startTime:cellTime(g('startTime')),
+    endDate:cellDate(g('endDate'),w,'End Date'),
+    scope:cellText(g('scope')),
+    notes:cellText(g('notes'))
+  };
+  if(rec.sgd && !/^SGD-\d+-\d+$/.test(rec.sgd)){ w(`SGD # "${rec.sgd}" doesn't look like SGD-26-123. Ignored.`); rec.sgd=''; }
+  if(!rec.onside&&!rec.sgd&&!rec.owner&&!rec.address) return null;
+  rec.name=rec.sgd?`${rec.sgd}-${rec.owner||rec.address}`:(rec.owner||rec.address||`Onside ${rec.onside}`);
+  return rec;
+}
+
+/* ---- match a sheet row to a job already on the board ---- */
+function findJobForRecord(rec,used){
+  const n=normKey, free=j=>!used.has(j.id);
+  const pool=allJobs.filter(free);
+  let j;
+  if(rec.onside && (j=pool.find(x=>n(x.details?.onsideNo)===n(rec.onside)))) return j;
+  if(rec.sgd && (j=pool.find(x=>(x.name||'').toUpperCase().startsWith(rec.sgd+'-')||(x.name||'').toUpperCase()===rec.sgd))) return j;
+  if(rec.owner && n(rec.owner).length>=5 && (j=pool.find(x=>n(x.name).includes(n(rec.owner))))) return j;
+  if(rec.address && (j=pool.find(x=>n(x.details?.address)===n(rec.address)||n(x.name)===n(rec.address)))) return j;
+  return null;
+}
+
+const STATUS_RANK={pipeline:0,soon:1,urgent:1,ongoing:2};
+const STATUS_NAME={pipeline:'Pipeline',soon:'Coming Soon',urgent:'Immediate',ongoing:'Ongoing',hold:'On Hold',completed:'Completed'};
+
+function diffJob(job,rec){
+  const ch=[], d=job.details||{};
+  const add=(label,oldV,newV,apply)=>{ if(newV!==''&&newV!=null&&String(oldV??'')!==String(newV)) ch.push({label,oldV:oldV||'—',newV,apply}); };
+  // Only rename when the sheet gives an SGD # (never strip an SGD # off a board name).
+  if(rec.sgd && (rec.owner||rec.address)) add('Name',job.name,rec.name,j=>j.name=rec.name);
+  add('Scope',job.scope,rec.scope,j=>j.scope=rec.scope);
+  add('PM',job.pm,rec.pm,j=>j.pm=rec.pm);
+  add('Notes',job.notes,rec.notes,j=>j.notes=rec.notes);
+  add('Start Date',job.tbd?'TBD':job.startDate,rec.startDate,j=>{j.startDate=rec.startDate;j.tbd=false;});
+  const D=(label,key,val)=>add(label,d[key],val,j=>{j.details={...(j.details||{}),[key]:val};});
+  D('Onside #','onsideNo',rec.onside); D('Address','address',rec.address); D('Phone','phone',rec.phone);
+  D('NOP','nop',rec.nop); D('NOP Date','nopDate',rec.nopDate);
+  D('Hazmat','hazmat',rec.hazmat); D('Xactimate','xactimate',rec.xact);
+  D('Site Visit','siteVisitDate',rec.visitDate); D('Visit Time','siteVisitTime',rec.visitTime);
+  D('Start Time','startTime',rec.startTime); D('End Date','endDate',rec.endDate);
+
+  // Status only moves forward; never reopens a completed job.
+  const st=rec.status;
+  if(st && !job.completed){
+    if(st==='completed') ch.push({label:'Status',oldV:STATUS_NAME[job.status]||job.status,newV:'Completed',apply:j=>{j.completed=true;}});
+    else if(st==='hold' && job.status!=='hold') ch.push({label:'Status',oldV:STATUS_NAME[job.status],newV:'On Hold',apply:j=>{j.status='hold';}});
+    else if(st!=='hold' && (job.status==='hold' || (STATUS_RANK[st]??-1)>(STATUS_RANK[job.status]??99)))
+      ch.push({label:'Status',oldV:STATUS_NAME[job.status],newV:STATUS_NAME[st],apply:j=>{j.status=st;}});
+  }
+  return ch;
+}
+
+function newJobFromRecord(rec){
+  const slug=(rec.onside||rec.name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  let id='onside-'+slug; if(allJobs.some(j=>j.id===id)) id+='-'+Date.now();
+  const maxOrder=allJobs.reduce((m,j)=>Math.max(m,j.sortOrder||0),0);
+  const st=rec.status||'pipeline';
+  const job={
+    id, num:'--', name:rec.name, scope:rec.scope, status:st==='completed'?'ongoing':st,
+    notes:rec.notes, tags:[{text:'Onside',color:'blue'}], tasks:[], completed:st==='completed',
+    division:'sgd', sortOrder:maxOrder+1, startDate:rec.startDate, tbd:!rec.startDate,
+    manpower:'', hours:'', days:'', superintendent:'', pm:rec.pm, crewSize:'', pinned:false,
+    workDays:{...DEFAULT_WORKDAYS},
+    details:{...DETAIL_DEFAULTS, onsideNo:rec.onside, address:rec.address, phone:rec.phone,
+      siteVisitDate:rec.visitDate, siteVisitTime:rec.visitTime, startTime:rec.startTime, endDate:rec.endDate,
+      nop:rec.nop, nopDate:rec.nopDate, hazmat:rec.hazmat, xactimate:rec.xact}
+  };
+  ensureAbatementTasks(job);
+  return job;
+}
+
+/* ---- UI ---- */
+let importPlan=null;
+
+function openImport(){
+  if(!requireEditor()) return;
+  if(typeof DecompressionStream==='undefined'){
+    alert('This browser is too old to read Excel files. Use an up-to-date Chrome or Edge.');
+    return;
+  }
+  const f=document.getElementById('importFile'); f.value=''; f.click();
+}
+
+async function handleImportFile(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  const body=document.getElementById('imp-body');
+  document.getElementById('imp-modal').classList.add('open');
+  body.innerHTML='<p class="empty-msg">Reading '+esc(file.name)+'…</p>';
+  document.getElementById('imp-apply').disabled=true;
+  try{
+    const sheets=/\.csv$/i.test(file.name)?readCsv(await file.text()):await readXlsx(file);
+    const pick=pickSheet(sheets);
+    if(!pick) throw new Error('Couldn\'t find the job columns. The sheet needs a header row with at least "Onside Job #", "SGD #" or "Homeowner".');
+    const warnings=[], used=new Set(), plan={adds:[],updates:[],same:0,sheet:pick.sh.name,warnings};
+    const seen=new Set();
+    for(let r=pick.r+1;r<pick.sh.rows.length;r++){
+      const rec=rowToRecord(pick.sh.rows[r]||[],pick.m,r+1,m=>warnings.push(m));
+      if(!rec) continue;
+      const key=rec.onside||rec.sgd||normKey(rec.name);
+      if(seen.has(key)){ warnings.push(`Row ${rec.rowNum}: duplicate of an earlier row (${rec.name}). Skipped.`); continue; }
+      seen.add(key);
+      const job=findJobForRecord(rec,used);
+      if(job){
+        used.add(job.id);
+        const ch=diffJob(job,rec);
+        if(ch.length) plan.updates.push({job,changes:ch,rec}); else plan.same++;
+      } else plan.adds.push({job:newJobFromRecord(rec),rec});
+    }
+    importPlan=plan;
+    renderImportPreview();
+  }catch(e){
+    console.error(e);
+    body.innerHTML=`<p class="imp-err">⚠ ${esc(e.message||'Could not read that file.')}</p>`;
+  }
+}
+
+function renderImportPreview(){
+  const p=importPlan, body=document.getElementById('imp-body');
+  const total=p.adds.length+p.updates.length;
+  let h=`<div class="imp-summary">Sheet <b>${esc(p.sheet)}</b>: <b>${p.adds.length}</b> new · <b>${p.updates.length}</b> updated · ${p.same} unchanged</div>`;
+  if(!total) h+='<p class="empty-msg">The board already matches this sheet. Nothing to import.</p>';
+  if(p.adds.length){
+    h+='<div class="imp-sec">➕ New jobs <span>(added to SGD, blue ONSIDE tag)</span></div>';
+    p.adds.forEach((a,i)=>{
+      const d=a.job.details, bits=[STATUS_NAME[a.job.completed?'completed':a.job.status],d.onsideNo&&('Onside '+d.onsideNo),a.job.startDate&&('Start '+a.job.startDate),d.nop&&('NOP '+d.nop)].filter(Boolean);
+      h+=`<label class="imp-row"><input type="checkbox" checked data-kind="add" data-i="${i}">
+        <div><div class="imp-name">${esc(a.job.name)}</div><div class="imp-meta">${esc(bits.join(' · '))}</div></div></label>`;
+    });
+  }
+  if(p.updates.length){
+    h+='<div class="imp-sec">✎ Updates <span>(only the fields listed change)</span></div>';
+    p.updates.forEach((u,i)=>{
+      h+=`<label class="imp-row"><input type="checkbox" checked data-kind="upd" data-i="${i}">
+        <div><div class="imp-name">${esc(u.job.name)}</div>
+        ${u.changes.map(c=>`<div class="imp-chg"><b>${esc(c.label)}:</b> <s>${esc(String(c.oldV).slice(0,60))}</s> → ${esc(String(c.newV).slice(0,80))}</div>`).join('')}
+        </div></label>`;
+    });
+  }
+  if(p.warnings.length){
+    h+='<div class="imp-sec">⚠ Check these</div>'+p.warnings.map(w=>`<div class="imp-warn">${esc(w)}</div>`).join('');
+  }
+  body.innerHTML=h;
+  const btn=document.getElementById('imp-apply');
+  btn.disabled=!total; btn.textContent=total?`Apply ${total} change${total>1?'s':''}`:'Apply';
+}
+
+async function applyImport(){
+  if(!importPlan||!requireEditor()) return;
+  const btn=document.getElementById('imp-apply');
+  const picked=Array.from(document.querySelectorAll('#imp-body input[type=checkbox]:checked'));
+  if(!picked.length){ closeImport(); return; }
+  btn.disabled=true; btn.textContent='Saving…';
+  let ok=0, fail=0;
+  for(const box of picked){
+    const i=+box.dataset.i;
+    if(box.dataset.kind==='add'){
+      const job=importPlan.adds[i].job;
+      allJobs.push(job);
+      if(await insertJob(job)) ok++; else fail++;
+    } else {
+      const u=importPlan.updates[i];
+      u.changes.forEach(c=>c.apply(u.job));
+      ensureAbatementTasks(u.job);
+      if(await upsert(u.job)) ok++; else fail++;
+    }
+  }
+  importPlan=null;
+  closeImport(); refreshAll();
+  alert(fail?`Imported ${ok}. ${fail} didn't save — check your connection and import the same file again (it won't duplicate).`:`Imported ${ok} change${ok===1?'':'s'}.`);
+}
+
+function closeImport(){
+  document.getElementById('imp-modal').classList.remove('open');
+  importPlan=null;
+}
 
 
 let isSaving=false;
