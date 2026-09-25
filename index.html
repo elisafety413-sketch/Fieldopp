@@ -1670,7 +1670,7 @@ body.light-mode .imp-warn{color:#7a5200!important;}
 <body>
 
 <header>
-  <span class="hdr-title">Salco Job Board v6.8</span>
+  <span class="hdr-title">Salco Job Board v6.9</span>
   <div class="hdr-right">
     <span class="sync-dot" id="sync-dot" title="Sync status"></span>
 
@@ -1869,7 +1869,8 @@ body.light-mode .imp-warn{color:#7a5200!important;}
     <div class="field">
       <label>Job Details</label>
       <div class="details-form">
-        <input id="f-onside" placeholder="Onside Job # (e.g. 26-20-497404)">
+        <input id="f-client" placeholder="Client / GC (e.g. Onside)">
+        <input id="f-onside" placeholder="Client job # (their reference)">
         <input id="f-phone" placeholder="Homeowner phone">
         <input id="f-address" class="span2" placeholder="Site address">
         <div><span class="mini-lbl">Site visit date</span><input type="date" id="f-visit-date"></div>
@@ -2165,7 +2166,7 @@ const ABATEMENT_TASKS=['DOPs Scheduled','Site Mobilized'];
 
 /* ===== JOB DETAILS (stored in jobs.details jsonb) ===== */
 const DETAIL_DEFAULTS={
-  onsideNo:'', address:'', phone:'',
+  client:'', onsideNo:'', address:'', phone:'',
   siteVisitDate:'', siteVisitTime:'',
   startTime:'', endDate:'',
   nop:'', nopDate:'',
@@ -2183,9 +2184,15 @@ function fmtShortDate(d){
   return p.toLocaleDateString('en-CA',{month:'short',day:'numeric'});
 }
 
+function jobClient(j){
+  if(j.details?.client) return j.details.client;
+  const t=(j.tags||[]).find(t=>/^onside$/i.test(t.text||''));
+  return t?'Onside':'';
+}
+
 function detailsHTML(j){
   const d=j.details||{};
-  const has=Object.keys(DETAIL_DEFAULTS).some(k=>d[k]) || j.pm;
+  const has=Object.keys(DETAIL_DEFAULTS).some(k=>d[k]) || j.pm || jobClient(j);
   if(!has) return '';
 
   const nopCls=d.nop==='Filed'?'green':d.nop==='Requested'?'amber':d.nop==='Need to Apply'?'red':'';
@@ -2201,7 +2208,8 @@ function detailsHTML(j){
     ${d.address?`<a class="dt-line" href="${mapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 ${esc(d.address)}</a>`:''}
     ${d.phone?`<a class="dt-line" href="tel:${esc(tel)}" onclick="event.stopPropagation()">📞 ${esc(d.phone)}</a>`:''}
     <div class="dt-grid">
-      ${chip('Onside #',d.onsideNo)}
+      ${chip('Client',jobClient(j))}
+      ${chip('Client Job #',d.onsideNo)}
       ${chip('PM',j.pm)}
       ${chip('Site Visit',visit)}
       ${chip('Start Time',d.startTime)}
@@ -2216,7 +2224,7 @@ function detailsHTML(j){
 function readDetailsForm(){
   const v=id=>document.getElementById(id)?.value.trim()||'';
   return {
-    onsideNo:v('f-onside'), address:v('f-address'), phone:v('f-phone'),
+    client:v('f-client'), onsideNo:v('f-onside'), address:v('f-address'), phone:v('f-phone'),
     siteVisitDate:v('f-visit-date'), siteVisitTime:v('f-visit-time'),
     startTime:v('f-start-time'), endDate:v('f-end-date'),
     nop:v('f-nop'), nopDate:v('f-nop-date'),
@@ -2227,7 +2235,7 @@ function readDetailsForm(){
 function fillDetailsForm(d){
   d={...DETAIL_DEFAULTS,...(d||{})};
   const set=(id,val)=>{const el=document.getElementById(id); if(el) el.value=val||'';};
-  set('f-onside',d.onsideNo); set('f-address',d.address); set('f-phone',d.phone);
+  set('f-client',d.client); set('f-onside',d.onsideNo); set('f-address',d.address); set('f-phone',d.phone);
   set('f-visit-date',d.siteVisitDate); set('f-visit-time',d.siteVisitTime);
   set('f-start-time',d.startTime); set('f-end-date',d.endDate);
   set('f-nop',d.nop); set('f-nop-date',d.nopDate);
@@ -4094,7 +4102,7 @@ function renderOpsRibbon(){
 
 /* ===================================================================
    IMPORT EXCEL
-   Reads the Salco Onside Jobs sheet (.xlsx or .csv) with no outside
+   Reads the Salco Jobs sheet (.xlsx or .csv) with no outside
    library: an .xlsx is a zip of XML files, unzipped by the browser.
    =================================================================== */
 
@@ -4224,9 +4232,11 @@ function readCsv(text){
 /* ---- column headers (new sheet + the coordinator's older layout) ---- */
 const IMPORT_HEADERS={
   status:['status'],
-  onside:['onsidejob','onsidejobno','onsidejobnumber','jobnumber','jobjumber','jobno','onside'],
-  sgd:['sgd','sgdno','sgdnumber','projectnumber','projectno'],
-  owner:['homeowner','homeownername','customer','insured','client'],
+  division:['division','div'],
+  client:['client','gc','clientgc','primecontractor','generalcontractor'],
+  onside:['clientjob','clientjobno','clientjobnumber','clientref','clientreference','onsidejob','onsidejobno','onsidejobnumber','jobnumber','jobjumber','claimnumber','onside'],
+  sgd:['salcojob','salcojobno','salcojobnumber','sgd','sgdno','sgdnumber','projectnumber','projectno','jobno'],
+  owner:['customer','customersite','customersitename','sitename','homeowner','homeownername','insured','jobname'],
   address:['address','siteaddress','property'],
   phone:['phone','phonenumber','cell'],
   pm:['pm','projectmanager'],
@@ -4321,6 +4331,8 @@ function rowToRecord(row,m,rowNum,warn){
     rowNum,
     status:statusValue(g('status')),
     onside:cellText(g('onside')).replace(/\s+/g,''),
+    client:cellText(g('client')),
+    division:(normKey(cellText(g('division')))==='sgc'?'sgc':normKey(cellText(g('division')))==='sgd'?'sgd':''),
     sgd:cellText(g('sgd')).toUpperCase(),
     owner:cellText(g('owner')),
     address:cellText(g('address')),
@@ -4338,9 +4350,10 @@ function rowToRecord(row,m,rowNum,warn){
     scope:cellText(g('scope')),
     notes:cellText(g('notes'))
   };
-  if(rec.sgd && !/^SGD-\d+-\d+$/.test(rec.sgd)){ w(`SGD # "${rec.sgd}" doesn't look like SGD-26-123. Ignored.`); rec.sgd=''; }
+  if(rec.sgd && !/^SG[DC]-\d+-\d+$/.test(rec.sgd)){ w(`Salco Job # "${rec.sgd}" doesn't look like SGD-26-123 or SGC-26-123. Ignored.`); rec.sgd=''; }
+  if(!rec.division) rec.division=rec.sgd.startsWith('SGC')?'sgc':'sgd';
   if(!rec.onside&&!rec.sgd&&!rec.owner&&!rec.address) return null;
-  rec.name=rec.sgd?`${rec.sgd}-${rec.owner||rec.address}`:(rec.owner||rec.address||`Onside ${rec.onside}`);
+  rec.name=rec.sgd?`${rec.sgd}-${rec.owner||rec.address}`:(rec.owner||rec.address||`${rec.client||'Client'} ${rec.onside}`);
   return rec;
 }
 
@@ -4369,7 +4382,8 @@ function diffJob(job,rec){
   add('Notes',job.notes,rec.notes,j=>j.notes=rec.notes);
   add('Start Date',job.tbd?'TBD':job.startDate,rec.startDate,j=>{j.startDate=rec.startDate;j.tbd=false;});
   const D=(label,key,val)=>add(label,d[key],val,j=>{j.details={...(j.details||{}),[key]:val};});
-  D('Onside #','onsideNo',rec.onside); D('Address','address',rec.address); D('Phone','phone',rec.phone);
+  if(rec.client && normKey(rec.client)!==normKey(jobClient(job))) add('Client',jobClient(job),rec.client,j=>{j.details={...(j.details||{}),client:rec.client};});
+  D('Client Job #','onsideNo',rec.onside); D('Address','address',rec.address); D('Phone','phone',rec.phone);
   D('NOP','nop',rec.nop); D('NOP Date','nopDate',rec.nopDate);
   D('Hazmat','hazmat',rec.hazmat); D('Xactimate','xactimate',rec.xact);
   D('Site Visit','siteVisitDate',rec.visitDate); D('Visit Time','siteVisitTime',rec.visitTime);
@@ -4388,16 +4402,16 @@ function diffJob(job,rec){
 
 function newJobFromRecord(rec){
   const slug=(rec.onside||rec.name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  let id='onside-'+slug; if(allJobs.some(j=>j.id===id)) id+='-'+Date.now();
+  let id='job-'+slug; if(allJobs.some(j=>j.id===id)) id+='-'+Date.now();
   const maxOrder=allJobs.reduce((m,j)=>Math.max(m,j.sortOrder||0),0);
   const st=rec.status||'pipeline';
   const job={
     id, num:'--', name:rec.name, scope:rec.scope, status:st==='completed'?'ongoing':st,
-    notes:rec.notes, tags:[{text:'Onside',color:'blue'}], tasks:[], completed:st==='completed',
-    division:'sgd', sortOrder:maxOrder+1, startDate:rec.startDate, tbd:!rec.startDate,
+    notes:rec.notes, tags:rec.client?[{text:rec.client,color:'blue'}]:[], tasks:[], completed:st==='completed',
+    division:rec.division||'sgd', sortOrder:maxOrder+1, startDate:rec.startDate, tbd:!rec.startDate,
     manpower:'', hours:'', days:'', superintendent:'', pm:rec.pm, crewSize:'', pinned:false,
     workDays:{...DEFAULT_WORKDAYS},
-    details:{...DETAIL_DEFAULTS, onsideNo:rec.onside, address:rec.address, phone:rec.phone,
+    details:{...DETAIL_DEFAULTS, client:rec.client, onsideNo:rec.onside, address:rec.address, phone:rec.phone,
       siteVisitDate:rec.visitDate, siteVisitTime:rec.visitTime, startTime:rec.startTime, endDate:rec.endDate,
       nop:rec.nop, nopDate:rec.nopDate, hazmat:rec.hazmat, xactimate:rec.xact}
   };
@@ -4426,7 +4440,7 @@ async function handleImportFile(input){
   try{
     const sheets=/\.csv$/i.test(file.name)?readCsv(await file.text()):await readXlsx(file);
     const pick=pickSheet(sheets);
-    if(!pick) throw new Error('Couldn\'t find the job columns. The sheet needs a header row with at least "Onside Job #", "SGD #" or "Homeowner".');
+    if(!pick) throw new Error('Couldn\'t find the job columns. The sheet needs a header row with at least "Salco Job #", "Client Job #" or "Customer".');
     const warnings=[], used=new Set(), plan={adds:[],updates:[],same:0,sheet:pick.sh.name,warnings};
     const seen=new Set();
     for(let r=pick.r+1;r<pick.sh.rows.length;r++){
@@ -4456,9 +4470,9 @@ function renderImportPreview(){
   let h=`<div class="imp-summary">Sheet <b>${esc(p.sheet)}</b>: <b>${p.adds.length}</b> new · <b>${p.updates.length}</b> updated · ${p.same} unchanged</div>`;
   if(!total) h+='<p class="empty-msg">The board already matches this sheet. Nothing to import.</p>';
   if(p.adds.length){
-    h+='<div class="imp-sec">➕ New jobs <span>(added to SGD, blue ONSIDE tag)</span></div>';
+    h+='<div class="imp-sec">➕ New jobs <span>(added to their division, tagged with the client)</span></div>';
     p.adds.forEach((a,i)=>{
-      const d=a.job.details, bits=[STATUS_NAME[a.job.completed?'completed':a.job.status],d.onsideNo&&('Onside '+d.onsideNo),a.job.startDate&&('Start '+a.job.startDate),d.nop&&('NOP '+d.nop)].filter(Boolean);
+      const d=a.job.details, bits=[STATUS_NAME[a.job.completed?'completed':a.job.status],(a.job.division||'sgd').toUpperCase(),d.client,d.onsideNo&&('Client #'+d.onsideNo),a.job.startDate&&('Start '+a.job.startDate),d.nop&&('NOP '+d.nop)].filter(Boolean);
       h+=`<label class="imp-row"><input type="checkbox" checked data-kind="add" data-i="${i}">
         <div><div class="imp-name">${esc(a.job.name)}</div><div class="imp-meta">${esc(bits.join(' · '))}</div></div></label>`;
     });
